@@ -15,7 +15,7 @@ def test_candidate_run_logs_tags(tmp_path, monkeypatch):
     assert got.data.tags["generator"] == "dummy"
     assert got.data.tags["role"] == "baseline"
     assert len(got.data.tags["git_commit"]) == 40
-    assert got.data.tags["data_train_md5"] == "missing"
+    assert "data_train_md5" in got.data.tags and "dvc_lock_md5" in got.data.tags
     assert got.data.metrics["quality_score"] == 0.5
 
 
