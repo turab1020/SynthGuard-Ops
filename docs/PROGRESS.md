@@ -7,7 +7,7 @@ Status: To do / In progress / Blocked / Done.
 |---|---|---|---|---|---|
 | T01 | Turab | GitHub repo + collaborators (manual) | Done | Initial commit pushed to main; repo-level identity set to Turab's noreply; attribution check OK | 2026-11-17 |
 | T02 | Turab | Repo scaffold | Done | Package, Makefile, ruff/pre-commit, params.yaml, config.py; lint + 4 tests green; requirements.lock (262 pins) | 2026-11-17 |
-| T03 | Turab | DVC + MLflow init | To do | | |
+| T03 | Turab | DVC + MLflow init | Done | dvc init + local remote; mlflow_utils with tags; dummy run visible in UI (port 5001); 6 tests green | 2026-11-17 |
 | T04 | Nufil | Download raw data + EDA | To do | | |
 | T05 | Nufil | Validation stage (pandera) | To do | | |
 | T06 | Nufil | Prepare stage + leakage-free split | To do | | |

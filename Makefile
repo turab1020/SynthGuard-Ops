@@ -29,7 +29,7 @@ smoke:
 	SYNTHGUARD_SMOKE=1 $(BIN)/dvc repro
 
 ui:
-	$(BIN)/mlflow ui --backend-store-uri sqlite:///mlflow.db --port 5000
+	$(BIN)/mlflow ui --backend-store-uri sqlite:///mlflow.db --port 5001
 
 lock:
 	$(PY) -m pip freeze --exclude-editable > requirements.lock

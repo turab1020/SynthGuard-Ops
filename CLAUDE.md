@@ -143,7 +143,7 @@ make lint         # ruff check + ruff format --check
 make test         # pytest -q
 make reproduce    # dvc repro && dvc metrics show
 make smoke        # SYNTHGUARD_SMOKE=1 fast end-to-end run
-make ui           # mlflow ui --backend-store-uri sqlite:///mlflow.db --port 5000
+make ui           # mlflow ui --backend-store-uri sqlite:///mlflow.db --port 5001
 docker compose run --rm pipeline   # the one command for graders
 ```
 
