@@ -1,0 +1,29 @@
+# Python / env
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+
+# Secrets / local config
+.env
+.claude/settings.local.json
+
+# Data & models (tracked by DVC, never git)
+/data/
+/models/
+
+# MLflow
+mlflow.db
+mlruns/
+mlartifacts/
+
+# OS / editor
+.DS_Store
+.vscode/
+
+# Teammate handoff bundles (never commit)
+handoff/
