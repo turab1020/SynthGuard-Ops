@@ -5,7 +5,7 @@ Status: To do / In progress / Blocked / Done.
 
 | ID | Owner | Task | Status | Result / notes | Date |
 |---|---|---|---|---|---|
-| T01 | Turab | GitHub repo + collaborators (manual) | In progress | Repo created; Faizan and Nufil accepted invites. Remaining: initial commit pushed | 2026-11-16 |
+| T01 | Turab | GitHub repo + collaborators (manual) | Done | Initial commit pushed to main; repo-level identity set to Turab's noreply; attribution check OK | 2026-11-17 |
 | T02 | Turab | Repo scaffold | To do | | |
 | T03 | Turab | DVC + MLflow init | To do | | |
 | T04 | Nufil | Download raw data + EDA | To do | | |
