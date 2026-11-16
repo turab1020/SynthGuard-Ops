@@ -27,3 +27,14 @@ mlartifacts/
 
 # Teammate handoff bundles (never commit)
 handoff/
+
+# Private working notes (local only)
+CLAUDE.md
+.claude/
+docs/IMPLEMENTATION_PLAN.md
+docs/PROGRESS.md
+docs/REPO_SETUP.md
+docs/PROPOSAL.md
+docs/DELIVERABLE_1.md
+docs/decisions.md
+docs/walkthrough/
