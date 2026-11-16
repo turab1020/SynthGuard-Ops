@@ -8,10 +8,10 @@ Status: To do / In progress / Blocked / Done.
 | T01 | Turab | GitHub repo + collaborators (manual) | Done | Initial commit pushed to main; repo-level identity set to Turab's noreply; attribution check OK | 2026-11-17 |
 | T02 | Turab | Repo scaffold | Done | Package, Makefile, ruff/pre-commit, params.yaml, config.py; lint + 4 tests green; requirements.lock (262 pins) | 2026-11-17 |
 | T03 | Turab | DVC + MLflow init | Done | dvc init + local remote; mlflow_utils with tags; dummy run visible in UI (port 5001); 6 tests green | 2026-11-17 |
-| T04 | Nufil | Download raw data + EDA | To do | | |
-| T05 | Nufil | Validation stage (pandera) | To do | | |
-| T06 | Nufil | Prepare stage + leakage-free split | To do | | |
-| T07 | Faizan | Metrics spec | To do | | |
+| T04 | Nufil | Download raw data + EDA | In progress | Built + tested; handoff bundle ready (handoff/nufil/T04-download.zip); waiting for Nufil's push on nufil/data | 2026-11-17 |
+| T05 | Nufil | Validation stage (pandera) | In progress | Built + tested (corruption demo: 2 errors caught); bundle handoff/nufil/T05-validate.zip; waiting for Nufil | 2026-11-17 |
+| T06 | Nufil | Prepare stage + leakage-free split | In progress | Built + tested: 24 dups removed, 22,775/9,762 split, >50K 0.2409 both; bundle handoff/nufil/T06-prepare.zip; waiting for Nufil | 2026-11-17 |
+| T07 | Faizan | Metrics spec | In progress | docs/metrics.md written; bundle handoff/faizan/T07-metrics-spec.zip; waiting for Faizan's push | 2026-11-17 |
 | T08 | Nufil | Generator wrapper + baselines | To do | | |
 | T09 | Nufil | CTGAN + TVAE | To do | | |
 | T10 | Faizan | Fidelity module | To do | | |

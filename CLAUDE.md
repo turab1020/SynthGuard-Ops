@@ -102,6 +102,10 @@ Remote URL: `https://github.com/turab1020/SynthGuard-Ops.git` (web: https://gith
    onto `main`, delete the bundle, and continue with the tasks that were waiting.
 7. Report clearly at each checkpoint which bundles are waiting on whom.
 - `handoff/` is in `.gitignore` and must never be committed.
+- DVC must not auto-stage files: keep `core.autostage = false` in `.dvc/config`. `dvc.yaml`,
+  `dvc.lock` and `params.yaml` changes produced by a teammate's stage belong in **that teammate's
+  bundle**, not in Turab's commits. Before every commit, `git diff --cached --name-only` must list
+  only files from Turab's own task.
 
 **Never commit:** data, models, `mlflow.db`, `mlruns/`, `mlartifacts/`, `.env`, secrets,
 `.claude/settings.local.json`, `handoff/`.

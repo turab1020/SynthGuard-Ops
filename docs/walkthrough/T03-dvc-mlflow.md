@@ -2,7 +2,8 @@
 
 **What was built**
 - `dvc init` → `.dvc/` + `.dvcignore`. Default remote `localremote` → `../synthguard-dvc-remote`
-  (a sibling folder of the repo). `core.autostage` on, so DVC `git add`s its own pointer files.
+  (a sibling folder of the repo). `core.autostage = false`: DVC never `git add`s files itself, so
+  a teammate's `dvc.yaml`/`dvc.lock` changes can't slip into Turab's commits.
 - `src/synthguard/tracking/mlflow_utils.py`:
   - `get_tracking_uri()` → `MLFLOW_TRACKING_URI` or `sqlite:///<repo>/mlflow.db`
   - `start_candidate_run(generator, role, stage, run_id=None)` → one run per candidate; passing
