@@ -1,0 +1,26 @@
+seed: 42
+data:
+  url: https://archive.ics.uci.edu/static/public/2/adult.zip
+  member: adult.data
+  sha256: ""            # pinned in T04 after first download
+  target: income
+  test_size: 0.30
+  min_rows: 30000
+  max_null_fraction: 0.10
+generators:
+  marginal: {}
+  gaussian_copula: {}
+  ctgan: {epochs: 100, batch_size: 500}
+  tvae: {epochs: 100, batch_size: 500}
+evaluation:
+  utility:
+    random_forest: {n_estimators: 200, max_depth: null}
+    xgboost: {n_estimators: 300, max_depth: 6, learning_rate: 0.1}
+  privacy:
+    mia_sample_size: 2000
+selection:
+  weights: {quality: 0.5, utility: 0.5}
+  gate: {mia_auc_max: 0.60, exact_match_max: 0.01}
+smoke:
+  rows: 1000
+  epochs: 1

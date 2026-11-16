@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "synthguard"
+version = "0.1.0"
+description = "Quality-gated synthetic tabular data pipeline (MLOps course project)"
+requires-python = ">=3.11,<3.12"
+dependencies = [
+  "pandas", "numpy", "scikit-learn", "xgboost", "sdv", "sdmetrics", "torch",
+  "mlflow", "dvc", "pandera", "pyyaml", "requests", "psutil",
+]
+
+[project.optional-dependencies]
+dev = ["pytest", "ruff", "pre-commit", "jupyter"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+extend-exclude = ["notebooks", "handoff"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
