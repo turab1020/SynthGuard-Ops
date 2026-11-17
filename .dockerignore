@@ -1,0 +1,25 @@
+.git
+.venv
+venv
+__pycache__
+*.pyc
+.pytest_cache
+.ruff_cache
+.ipynb_checkpoints
+.DS_Store
+.env
+# data and outputs are rebuilt by DVC inside the container
+data
+models
+mlflow.db
+mlruns
+mlartifacts
+.dvc/cache
+.dvc/tmp
+# local-only files (same as .gitignore); only committed docs go in the image
+CLAUDE.md
+.claude
+handoff
+docs/*
+!docs/metrics.md
+submission/screenshots

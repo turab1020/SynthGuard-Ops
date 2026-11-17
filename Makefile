@@ -1,6 +1,12 @@
 VENV ?= .venv
-PY := $(VENV)/bin/python
-BIN := $(VENV)/bin
+PY ?= $(VENV)/bin/python
+BIN ?= $(VENV)/bin
+
+# macOS: torch bundles its own OpenMP (libomp). Make XGBoost load that same copy so only one
+# OpenMP runtime is in the process; two copies crash when torch and XGBoost run together.
+ifeq ($(shell uname),Darwin)
+OMP_ENV := DYLD_LIBRARY_PATH=$(CURDIR)/$(VENV)/lib/python3.11/site-packages/torch/lib
+endif
 
 .PHONY: setup lint format test reproduce smoke ui lock
 
@@ -19,14 +25,14 @@ format:
 	$(BIN)/ruff format .
 
 test:
-	$(BIN)/pytest
+	$(OMP_ENV) $(BIN)/pytest
 
 reproduce:
-	$(BIN)/dvc repro
+	$(OMP_ENV) $(BIN)/dvc repro
 	$(BIN)/dvc metrics show
 
 smoke:
-	SYNTHGUARD_SMOKE=1 $(BIN)/dvc repro
+	$(OMP_ENV) SYNTHGUARD_SMOKE=1 $(BIN)/dvc repro
 
 ui:
 	$(BIN)/mlflow ui --backend-store-uri sqlite:///mlflow.db --port 5001
