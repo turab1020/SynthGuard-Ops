@@ -8,7 +8,7 @@ ifeq ($(shell uname),Darwin)
 OMP_ENV := DYLD_LIBRARY_PATH=$(CURDIR)/$(VENV)/lib/python3.11/site-packages/torch/lib
 endif
 
-.PHONY: setup lint format test reproduce smoke ui lock
+.PHONY: setup lint format test reproduce smoke ui lock export
 
 setup:
 	python3.11 -m venv $(VENV)
@@ -39,3 +39,7 @@ ui:
 
 lock:
 	$(PY) -m pip freeze --exclude-editable > requirements.lock
+
+# MLflow evidence for submission: submission/mlflow_runs.csv + registered_models.json
+export:
+	$(PY) -m synthguard.tracking.export
