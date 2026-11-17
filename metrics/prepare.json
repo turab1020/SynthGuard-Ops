@@ -1,0 +1,9 @@
+{
+  "raw_rows": 32561,
+  "duplicates_removed": 24,
+  "train_rows": 22775,
+  "holdout_rows": 9762,
+  "train_positive_rate": 0.2409,
+  "holdout_positive_rate": 0.2409,
+  "unknown_cells_train": 2952
+}
