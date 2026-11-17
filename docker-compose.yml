@@ -1,0 +1,32 @@
+# One-command reproduction:  docker compose run --rm pipeline
+# MLflow UI afterwards:       docker compose up mlflow   ->  http://localhost:5001
+services:
+  pipeline:
+    build:
+      context: .
+      args:
+        GIT_COMMIT: ${GIT_COMMIT:-unknown}
+    image: synthguard:latest
+    # Repo mounted at /app: outputs (data, models, metrics, mlflow.db, dvc.lock) land in the clone.
+    volumes:
+      - .:/app
+    # Run as the host user so files created in the mounted repo stay editable (default 1000).
+    user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
+    environment:
+      HOME: /tmp
+      MLFLOW_TRACKING_URI: sqlite:////app/mlflow.db
+    command: make reproduce
+
+  mlflow:
+    image: synthguard:latest
+    volumes:
+      - .:/app
+    user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
+    environment:
+      HOME: /tmp
+    # Host port 5001 (macOS AirPlay already uses 5000).
+    ports:
+      - "5001:5000"
+    command: >
+      mlflow ui --backend-store-uri sqlite:////app/mlflow.db
+      --host 0.0.0.0 --port 5000

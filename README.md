@@ -158,6 +158,34 @@ SynthGuard-Ops/
 
 ## 🚀 How to Run & Verify
 
+### ▶️ Reproduce in one command (Docker)
+
+Requirements: Docker (Desktop on macOS/Windows, Engine on Linux) and internet access for the
+UCI download. No Python setup, DVC remote or credentials needed.
+
+```bash
+git clone https://github.com/turab1020/SynthGuard-Ops.git
+cd SynthGuard-Ops
+docker compose run --rm pipeline
+```
+
+This builds the CPU-only image (first time only), mounts the clone at `/app` and runs
+`make reproduce` (`dvc repro` + `dvc metrics show`) inside it. Every output lands in the clone:
+`data/`, `models/`, `metrics/*.json`, `reports/`, `dvc.lock` and the MLflow store `mlflow.db`.
+
+```bash
+docker compose up mlflow        # MLflow UI on http://localhost:5001  (Ctrl+C to stop)
+```
+
+Notes
+- DVC only re-runs a stage when its code, data or parameters changed. The raw-data validation
+  report is committed, so after the download produces the same SHA-256 the `validate` stage is
+  reported as unchanged and its recorded result (`reports/validation/raw.json`) is reused.
+  Force every stage with `docker compose run --rm pipeline dvc repro --force`.
+- On Linux, if your user id is not 1000, run `HOST_UID=$(id -u) HOST_GID=$(id -g) docker compose run --rm pipeline`
+  so files written into the clone are owned by you.
+- Without Docker: `make setup && make reproduce`.
+
 ### 1. Environment Setup
 ```bash
 # Create venv and install package in editable mode with dev dependencies
@@ -187,7 +215,7 @@ dvc metrics show
 
 ### 4. MLflow Tracking UI
 ```bash
-# Launch MLflow tracking server locally on port 5000
+# Launch MLflow tracking UI on http://localhost:5001 (macOS AirPlay uses port 5000)
 make ui
 ```
 
