@@ -40,7 +40,7 @@ def file_md5(path: str | Path) -> str:
 
 
 def git_commit() -> str:
-    """Current HEAD commit, or 'unknown' outside a git repo."""
+    """Current HEAD commit; else $GIT_COMMIT (set at image build time); else 'unknown'."""
     try:
         out = subprocess.run(
             ["git", "rev-parse", "HEAD"],
@@ -51,7 +51,7 @@ def git_commit() -> str:
         )
         return out.stdout.strip()
     except (subprocess.CalledProcessError, FileNotFoundError):
-        return "unknown"
+        return os.environ.get("GIT_COMMIT", "unknown")
 
 
 def common_tags() -> dict[str, str]:
