@@ -2,7 +2,7 @@ seed: 42
 data:
   url: https://archive.ics.uci.edu/static/public/2/adult.zip
   member: adult.data
-  sha256: ""            # pinned in T04 after first download
+  sha256: "5b00264637dbfec36bdeaab5676b0b309ff9eb788d63554ca0a249491c86603d"
   target: income
   test_size: 0.30
   min_rows: 30000

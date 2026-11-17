@@ -1,0 +1,48 @@
+stages:
+  download:
+    cmd: python -m synthguard.stages.download
+    deps:
+      - src/synthguard/data/download.py
+      - src/synthguard/stages/download.py
+    params:
+      - data.url
+      - data.member
+      - data.sha256
+    outs:
+      - data/raw/adult.data
+
+  validate:
+    cmd: python -m synthguard.stages.validate
+    deps:
+      - data/raw/adult.data
+      - src/synthguard/data/schema.py
+      - src/synthguard/data/validate.py
+      - src/synthguard/stages/validate.py
+    params:
+      - data.min_rows
+      - data.max_null_fraction
+    outs:
+      - reports/validation/raw.json:
+          cache: false
+
+  prepare:
+    cmd: python -m synthguard.stages.prepare
+    deps:
+      - data/raw/adult.data
+      - reports/validation/raw.json
+      - src/synthguard/data/prepare.py
+      - src/synthguard/data/schema.py
+      - src/synthguard/stages/prepare.py
+    params:
+      - seed
+      - data.test_size
+      - data.target
+    outs:
+      - data/processed/train.csv
+      - data/processed/holdout.csv
+      - data/processed/metadata.json
+      - reports/validation/processed.json:
+          cache: false
+    metrics:
+      - metrics/prepare.json:
+          cache: false
