@@ -1,3 +1,4 @@
+import numpy as np
 import pytest
 
 from synthguard.data.prepare import clean
@@ -7,6 +8,12 @@ PARAMS = {
     "random_forest": {"n_estimators": 20, "max_depth": None},
     "xgboost": {"n_estimators": 20, "max_depth": 3, "learning_rate": 0.1},
 }
+
+
+def shuffle_columns(df, seed=0):
+    """Permute every column independently: keeps each marginal, destroys all relationships."""
+    rng = np.random.default_rng(seed)
+    return df.apply(lambda s: s.to_numpy()[rng.permutation(len(s))]).reset_index(drop=True)
 
 
 @pytest.fixture
@@ -40,6 +47,17 @@ def test_independent_columns_loses_utility(data):
     assert tstr["utility_ratio"] < 0.8  # columns independent -> no signal
 
 
+def test_utility_ratio_formula(data):
+    """utility_ratio must be TSTR RF ROC-AUC / TRTR RF ROC-AUC (not XGB, not inverted)."""
+    train, test = data
+    trtr = evaluate_trtr(train, test, PARAMS, seed=0)
+    tstr = evaluate_tstr(shuffle_columns(train), test, trtr, PARAMS, seed=0)
+    # guard: RF and XGB must differ here, otherwise the formula check proves nothing
+    assert tstr["tstr_rf_roc_auc"] != pytest.approx(tstr["tstr_xgb_roc_auc"], abs=1e-3)
+    expected = tstr["tstr_rf_roc_auc"] / trtr["trtr_rf_roc_auc"]
+    assert tstr["utility_ratio"] == pytest.approx(expected)
+
+
 def test_single_class_synthetic(data):
     train, test = data
     trtr = evaluate_trtr(train, test, PARAMS, seed=0)
@@ -48,15 +66,17 @@ def test_single_class_synthetic(data):
 
 
 def test_score_known_answer():
-    pass
-
-
-def shuffle_columns(df, seed=0):
-    """Permute every column independently: keeps each marginal, destroys all relationships."""
-    import numpy as np
-
-    rng = np.random.default_rng(seed)
-    return df.apply(lambda s: s.to_numpy()[rng.permutation(len(s))]).reset_index(drop=True)
-
     s = score(np.array([0, 0, 1, 1]), np.array([0.1, 0.6, 0.4, 0.9]))
-    assert s["precision"] == 0.5 and s["recall"] == 0.5 and s["roc_auc"] == 0.75
+    assert s["precision"] == 0.5
+    assert s["recall"] == 0.5
+    assert s["f1"] == 0.5
+    assert s["roc_auc"] == 0.75
+
+
+def test_score_known_answer_asymmetric():
+    # pred = [1, 1, 1, 0] -> TP=1, FP=2, FN=1: precision 1/3, recall 1/2, F1 0.4
+    s = score(np.array([0, 0, 1, 1]), np.array([0.6, 0.7, 0.8, 0.2]))
+    assert s["precision"] == pytest.approx(1 / 3)
+    assert s["recall"] == pytest.approx(0.5)
+    assert s["f1"] == pytest.approx(0.4)
+    assert s["roc_auc"] == pytest.approx(0.5)
