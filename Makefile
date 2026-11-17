@@ -27,12 +27,13 @@ format:
 test:
 	$(OMP_ENV) $(BIN)/pytest
 
+# DVC runs each stage as `python -m ...`: put the project's interpreter first on PATH.
 reproduce:
-	$(OMP_ENV) $(BIN)/dvc repro
+	PATH="$(abspath $(BIN)):$$PATH" $(OMP_ENV) $(BIN)/dvc repro
 	$(BIN)/dvc metrics show
 
 smoke:
-	$(OMP_ENV) SYNTHGUARD_SMOKE=1 $(BIN)/dvc repro
+	PATH="$(abspath $(BIN)):$$PATH" $(OMP_ENV) SYNTHGUARD_SMOKE=1 $(BIN)/dvc repro
 
 ui:
 	$(BIN)/mlflow ui --backend-store-uri sqlite:///mlflow.db --port 5001
