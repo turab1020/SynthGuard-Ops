@@ -99,3 +99,145 @@ stages:
       hash: md5
       md5: ce1983901d21fa4e8d2d01e6700e154c
       size: 885
+  baselines:
+    cmd: python -m synthguard.stages.baselines
+    deps:
+    - path: data/processed/holdout.csv
+      hash: md5
+      md5: e6afbfd240c35ea5436216df4ac152f6
+      size: 1062289
+    - path: data/processed/metadata.json
+      hash: md5
+      md5: fed3ca1fe48ac4a8691f4d316f09ab4b
+      size: 1391
+    - path: data/processed/train.csv
+      hash: md5
+      md5: d752643c8a256c4b8101e70429854520
+      size: 2479417
+    - path: src/synthguard/generators/base.py
+      hash: md5
+      md5: 55d33804d4832924314fd2db7d692fd6
+      size: 2448
+    - path: src/synthguard/generators/marginal.py
+      hash: md5
+      md5: 93cb0cf48211a3a3a555d4f448601726
+      size: 1449
+    - path: src/synthguard/generators/runner.py
+      hash: md5
+      md5: fb8fdb670360b2c4768cb40ef30a79e3
+      size: 2807
+    - path: src/synthguard/generators/sdv_models.py
+      hash: md5
+      md5: 7e71cb7e660e9d7d4c5fe8ce1df0a714
+      size: 1656
+    - path: src/synthguard/stages/baselines.py
+      hash: md5
+      md5: 797ec966ca568912fede6e83f7d8be89
+      size: 2378
+    params:
+      params.yaml:
+        evaluation.utility:
+          random_forest:
+            n_estimators: 200
+            max_depth:
+          xgboost:
+            n_estimators: 300
+            max_depth: 6
+            learning_rate: 0.1
+        generators.gaussian_copula: {}
+        generators.marginal: {}
+        seed: 42
+    outs:
+    - path: data/synthetic/gaussian_copula.csv
+      hash: md5
+      md5: 60e82c8e4d77d21da1a176c6e2f0d59c
+      size: 1071105
+    - path: data/synthetic/marginal.csv
+      hash: md5
+      md5: 8a83cae51e3d4938fa2a8b5a16a10aca
+      size: 1064351
+    - path: metrics/baselines.json
+      hash: md5
+      md5: 33d9923e7933a541a17df83c18adbd6a
+      size: 263
+    - path: metrics/runs_baselines.json
+      hash: md5
+      md5: 10ca0affecc45aaf6d4479b791b3ce94
+      size: 165
+    - path: models/gaussian_copula.pkl
+      hash: md5
+      md5: 97b6bab30b934aa3b8b6447eb6b75a28
+      size: 219607
+    - path: models/marginal.pkl
+      hash: md5
+      md5: 6b530946981958c03311ae9ac9b5d8db
+      size: 1096812
+  generate:
+    cmd: python -m synthguard.stages.generate
+    deps:
+    - path: data/processed/holdout.csv
+      hash: md5
+      md5: e6afbfd240c35ea5436216df4ac152f6
+      size: 1062289
+    - path: data/processed/metadata.json
+      hash: md5
+      md5: fed3ca1fe48ac4a8691f4d316f09ab4b
+      size: 1391
+    - path: data/processed/train.csv
+      hash: md5
+      md5: d752643c8a256c4b8101e70429854520
+      size: 2479417
+    - path: metrics/baselines.json
+      hash: md5
+      md5: 33d9923e7933a541a17df83c18adbd6a
+      size: 263
+    - path: src/synthguard/generators/base.py
+      hash: md5
+      md5: 55d33804d4832924314fd2db7d692fd6
+      size: 2448
+    - path: src/synthguard/generators/runner.py
+      hash: md5
+      md5: fb8fdb670360b2c4768cb40ef30a79e3
+      size: 2807
+    - path: src/synthguard/generators/sdv_models.py
+      hash: md5
+      md5: 7e71cb7e660e9d7d4c5fe8ce1df0a714
+      size: 1656
+    - path: src/synthguard/stages/generate.py
+      hash: md5
+      md5: a489824d3289616794c139294e8b3018
+      size: 1513
+    params:
+      params.yaml:
+        generators.ctgan:
+          epochs: 100
+          batch_size: 500
+        generators.tvae:
+          epochs: 100
+          batch_size: 500
+        seed: 42
+    outs:
+    - path: data/synthetic/ctgan.csv
+      hash: md5
+      md5: 01f4890ccd0cf9afba938f7d007ae95a
+      size: 1072660
+    - path: data/synthetic/tvae.csv
+      hash: md5
+      md5: dec08504a57c948f49b4bc930a5f13d9
+      size: 1059408
+    - path: metrics/primary.json
+      hash: md5
+      md5: e9bd601bef8fe5015ed8d74c6a0b3950
+      size: 252
+    - path: metrics/runs_primary.json
+      hash: md5
+      md5: 39b2d669b6cc98cf77bbca66a44ac25a
+      size: 95
+    - path: models/ctgan.pkl
+      hash: md5
+      md5: 81a8bd4ea4a9b7a5e28733b9e8ece78a
+      size: 3255486
+    - path: models/tvae.pkl
+      hash: md5
+      md5: f53899ddf9e6f5547cc8a06f766b0e62
+      size: 710411

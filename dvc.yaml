@@ -46,3 +46,56 @@ stages:
     metrics:
       - metrics/prepare.json:
           cache: false
+
+  baselines:
+    cmd: python -m synthguard.stages.baselines
+    deps:
+      - data/processed/train.csv
+      - data/processed/holdout.csv
+      - data/processed/metadata.json
+      - src/synthguard/generators/base.py
+      - src/synthguard/generators/marginal.py
+      - src/synthguard/generators/sdv_models.py
+      - src/synthguard/generators/runner.py
+      - src/synthguard/stages/baselines.py
+    params:
+      - seed
+      - generators.marginal
+      - generators.gaussian_copula
+      - evaluation.utility
+    outs:
+      - models/marginal.pkl
+      - models/gaussian_copula.pkl
+      - data/synthetic/marginal.csv
+      - data/synthetic/gaussian_copula.csv
+      - metrics/runs_baselines.json:
+          cache: false
+    metrics:
+      - metrics/baselines.json:
+          cache: false
+
+  generate:
+    cmd: python -m synthguard.stages.generate
+    deps:
+      - data/processed/train.csv
+      - data/processed/holdout.csv
+      - data/processed/metadata.json
+      - metrics/baselines.json
+      - src/synthguard/generators/base.py
+      - src/synthguard/generators/sdv_models.py
+      - src/synthguard/generators/runner.py
+      - src/synthguard/stages/generate.py
+    params:
+      - seed
+      - generators.ctgan
+      - generators.tvae
+    outs:
+      - models/ctgan.pkl
+      - models/tvae.pkl
+      - data/synthetic/ctgan.csv
+      - data/synthetic/tvae.csv
+      - metrics/runs_primary.json:
+          cache: false
+    metrics:
+      - metrics/primary.json:
+          cache: false
