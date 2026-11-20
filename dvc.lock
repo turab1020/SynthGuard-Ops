@@ -241,3 +241,101 @@ stages:
       hash: md5
       md5: f53899ddf9e6f5547cc8a06f766b0e62
       size: 710411
+  evaluate:
+    cmd: python -m synthguard.stages.evaluate
+    deps:
+    - path: data/processed/holdout.csv
+      hash: md5
+      md5: e6afbfd240c35ea5436216df4ac152f6
+      size: 1062289
+    - path: data/processed/metadata.json
+      hash: md5
+      md5: fed3ca1fe48ac4a8691f4d316f09ab4b
+      size: 1391
+    - path: data/processed/train.csv
+      hash: md5
+      md5: d752643c8a256c4b8101e70429854520
+      size: 2479417
+    - path: data/synthetic/ctgan.csv
+      hash: md5
+      md5: 01f4890ccd0cf9afba938f7d007ae95a
+      size: 1072660
+    - path: data/synthetic/gaussian_copula.csv
+      hash: md5
+      md5: 60e82c8e4d77d21da1a176c6e2f0d59c
+      size: 1071105
+    - path: data/synthetic/marginal.csv
+      hash: md5
+      md5: 8a83cae51e3d4938fa2a8b5a16a10aca
+      size: 1064351
+    - path: data/synthetic/tvae.csv
+      hash: md5
+      md5: dec08504a57c948f49b4bc930a5f13d9
+      size: 1059408
+    - path: metrics/baselines.json
+      hash: md5
+      md5: 33d9923e7933a541a17df83c18adbd6a
+      size: 263
+    - path: metrics/primary.json
+      hash: md5
+      md5: e9bd601bef8fe5015ed8d74c6a0b3950
+      size: 252
+    - path: metrics/runs_baselines.json
+      hash: md5
+      md5: 10ca0affecc45aaf6d4479b791b3ce94
+      size: 165
+    - path: metrics/runs_primary.json
+      hash: md5
+      md5: 39b2d669b6cc98cf77bbca66a44ac25a
+      size: 95
+    - path: src/synthguard/evaluation/fidelity.py
+      hash: md5
+      md5: 965474d79b9d6a520124e2db06d5c356
+      size: 2357
+    - path: src/synthguard/evaluation/privacy.py
+      hash: md5
+      md5: 21a82d8dca7e5f338df94eec0d20ad1f
+      size: 3406
+    - path: src/synthguard/evaluation/score.py
+      hash: md5
+      md5: 254afa30d8dec365d082a7f10fffcc93
+      size: 2188
+    - path: src/synthguard/evaluation/utility.py
+      hash: md5
+      md5: 558c6dc0285f63eee089ecbc90038cf1
+      size: 3363
+    - path: src/synthguard/stages/evaluate.py
+      hash: md5
+      md5: ba3547115368a38ea634f0537b55cfc5
+      size: 5832
+    params:
+      params.yaml:
+        evaluation:
+          utility:
+            random_forest:
+              n_estimators: 200
+              max_depth:
+            xgboost:
+              n_estimators: 300
+              max_depth: 6
+              learning_rate: 0.1
+          privacy:
+            mia_sample_size: 2000
+        seed: 42
+        selection:
+          weights:
+            quality: 0.5
+            utility: 0.5
+          gate:
+            mia_auc_max: 0.6
+            exact_match_max: 0.01
+    outs:
+    - path: metrics/evaluation.json
+      hash: md5
+      md5: 37bf56d48b6d63047a33f35be0db6768
+      size: 4461
+    - path: reports/eval
+      hash: md5
+      md5: 2b7ead62cbf49d29f089efddf0a7b8d8.dir
+      size: 1885
+      nfiles: 2
