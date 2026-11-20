@@ -35,11 +35,17 @@ def nearest_distances(
     return dist[:, 0]
 
 
+def _row_keys(df: pd.DataFrame) -> list[tuple]:
+    """Hashable row keys: numerics compared as numbers (39 == 39.0), categoricals as text."""
+    num = df[NUMERIC].astype("float64").to_numpy().tolist()
+    cat = df[CATEGORICAL].astype(str).to_numpy().tolist()
+    return [tuple(n) + tuple(c) for n, c in zip(num, cat, strict=True)]
+
+
 def exact_match_rate(synth: pd.DataFrame, train: pd.DataFrame) -> float:
     """Fraction of synthetic rows identical (all columns) to at least one training row."""
-    train_rows = set(map(tuple, train[COLUMNS].astype(str).to_numpy()))
-    synth_rows = map(tuple, synth[COLUMNS].astype(str).to_numpy())
-    return float(np.mean([row in train_rows for row in synth_rows]))
+    train_rows = set(_row_keys(train))
+    return float(np.mean([row in train_rows for row in _row_keys(synth)]))
 
 
 def membership_inference(
