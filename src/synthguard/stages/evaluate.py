@@ -95,6 +95,8 @@ def write_table(candidates: dict, selection: dict) -> pd.DataFrame:
         *[f"| {g} | " + " | ".join(row) + " |" for g, row in fmt.iterrows()],
         "",
         f"Selected: **{selection['generator']}** (privacy gate {selection['privacy_gate']}).",
+        f"Tied within {selection['tie_tolerance']} of the top score: "
+        f"{', '.join(selection['tied'])}; the fastest to train among them wins.",
     ]
     (REPORT_DIR / "comparison.md").write_text("\n".join(lines) + "\n")
     return table
@@ -131,7 +133,7 @@ def main() -> None:
             flush=True,
         )
 
-    selection = select(candidates)
+    selection = select(candidates, params["selection"].get("tie_tolerance", 0.0))
     write_table(candidates, selection)
     EVAL_PATH.write_text(
         json.dumps({"trtr": trtr, "candidates": candidates, "selection": selection}, indent=2)
