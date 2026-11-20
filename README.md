@@ -37,13 +37,12 @@ flowchart LR
     B --> C["prepare\n(Clean + Stratified Split)"]
     C --> D["baselines\n(Marginal + Copula)"]
     D --> E["generate\n(CTGAN + TVAE)"]
-    E -.-> F["evaluate\n(Fidelity + Utility + Privacy)"]
-    F -.-> G["register\n(Quality Gate + Champion Model)"]
+    D --> F["evaluate\n(Fidelity + Utility + Privacy)"]
+    E --> F
+    F --> G["register\n(Quality Gate + Champion Model)"]
 
     classDef completed fill:#d4edda,stroke:#28a745,stroke-width:2px;
-    classDef pending fill:#f8f9fa,stroke:#6c757d,stroke-width:2px,stroke-dasharray: 5 5;
-    class A,B,C,D,E completed;
-    class F,G pending;
+    class A,B,C,D,E,F,G completed;
 ```
 
 ---
@@ -100,6 +99,19 @@ flowchart LR
   - Benchmark timings on CPU: CTGAN fit ~155.0 s, TVAE ~37.4 s, Gaussian Copula ~3.35 s, Marginal ~0.008 s for 9,762 synthetic rows.
 - **DVC Pipeline Integration:** Pinned full DAG through `generate` stage in `dvc.yaml` and `dvc.lock`.
 
+### 7. Parameter Wiring & Generator Pipeline Tests (`T15`, `T20` — Merged via PR #19)
+- **Hyperparameter & DVC Tracking Wiring (`T15`):** Added comprehensive wiring checks in `tests/test_params_wiring.py`:
+  - Verified that every parameter declared in `dvc.yaml` exists in `params.yaml`.
+  - Confirmed stage-specific tracking: `generate` tracks `seed` and `generators.ctgan`/`tvae`, `baselines` tracks baseline parameters, and data stages track their respective parameters.
+  - Enforced that all CTGAN/TVAE hyperparameter keys in `params.yaml` map directly to valid SDV `CTGANSynthesizer` and `TVAESynthesizer` arguments to catch configuration typos early.
+  - Verified parameter pass-through from `params.yaml` directly to model initializations.
+- **Training Runner & Generate-Stage Guards (`T20`):** Added robust tests in `tests/test_runner.py`:
+  - Seeded smoke subsampling (1,000 rows) and synthetic sample size invariance.
+  - Verified `train_candidate` produces expected outputs (CSV data, model pkl) and logs MLflow runs with tags, parameters, and telemetry metrics.
+  - Guaranteed reproducibility of Gaussian Copula generation and SDV model serialization/deserialization round-trips.
+  - Tested fail-fast guard in `src/synthguard/stages/generate.py` that strictly requires `metrics/baselines.json` before training commences.
+- **Planted Bugs & DVC Granular Invalidation:** Demonstrated that editing `generators.ctgan.epochs` in `params.yaml` invalidates only the `generate` stage in `dvc status`. Verified that deliberately planted bugs (untracked params, `epoch` typo, missing baselines guard) reliably trigger immediate test failures.
+
 ---
 
 ## ⏳ Pending Work (Roadmap to Deliverable 1)
@@ -107,18 +119,18 @@ flowchart LR
 | Task ID | Owner | Workstream | Description | Status |
 |---|---|---|---|---|
 | **T14** | Faizan | Evaluation | Implement `evaluate` stage: run candidate evaluations, compute composite selection score, and apply privacy gate. | In progress |
-| **T15** | Nufil | Generation | Ensure generator parameters and RNG seeds are fully controlled via `params.yaml` with verified DVC repro triggers. | To do |
-| **T16** | Turab | Platform | Implement MLflow Model Registry stage: register champion generator under alias `champion`. | To do |
-| **T17** | All | Milestone | Full end-to-end pipeline run from raw download through champion model registration. | To do |
-| **T18** | Turab | Platform | Configure `docker-compose.yml` for zero-configuration, single-command pipeline reproduction. | To do |
-| **T19** | Turab | Platform | Setup GitHub Actions CI pipeline running linting, unit tests, and smoke pipeline execution. | To do |
-| **T20** | Nufil | Data/Generation | Expand unit tests for synthetic data distributions, column structures, and generator determinism. | To do |
-| **T21** | Faizan | Evaluation | Unit tests with synthetic known-answer fixtures for composite score and gate logic. | To do |
-| **T22** | Nufil | Verification | Fresh-clone reproduction audit to verify score reproducibility within tolerance ($\pm 0.02$). | To do |
-| **T23** | Faizan | Documentation | Compile model comparison and selection evidence table in `reports/results.md`. | To do |
-| **T24** | Turab | Platform | Generate MLflow run exports (`submission/mlflow_runs.csv`) and UI screenshots. | To do |
-| **T25** | All | Buffer | Final code review, pre-commit audit, and branch cleanup. | To do |
-| **T26** | Turab | Submission | Package deliverables and submit to Google Classroom. | To do |
+| **T15** | Nufil | Generation | Ensure generator parameters and RNG seeds are fully controlled via `params.yaml` with verified DVC repro triggers. | **Done** (PR #19) |
+| **T16** | Turab | Platform | Implement MLflow Model Registry stage: register champion generator under alias `champion`. | **Done** (PR #11, PR #14) |
+| **T17** | All | Milestone | Full end-to-end pipeline run from raw download through champion model registration. | In progress |
+| **T18** | Turab | Platform | Configure `docker-compose.yml` for zero-configuration, single-command pipeline reproduction. | **Done** (PR #10) |
+| **T19** | Turab | Platform | Setup GitHub Actions CI pipeline running linting, unit tests, determinism, and repro checks. | **Done** (PR #9, PR #17) |
+| **T20** | Nufil | Data/Generation | Expand unit tests for synthetic data distributions, column structures, and generator determinism. | **Done** (PR #19) |
+| **T21** | Faizan | Evaluation | Unit tests with synthetic known-answer fixtures for composite score and gate logic. | **Done** (PR #16) |
+| **T22** | Nufil | Verification | Fresh-clone reproduction audit to verify score reproducibility within tolerance ($\pm 0.02$). | Next up |
+| **T23** | Faizan | Documentation | Compile model comparison and selection evidence table in `reports/results.md`. | In progress |
+| **T24** | Turab | Platform | Generate MLflow run exports (`submission/mlflow_runs.csv`) and UI screenshots. | **Done** (PR #12) |
+| **T25** | All | Buffer | Final code review, pre-commit audit, and branch cleanup. | Pending |
+| **T26** | Turab | Submission | Package deliverables and submit to Google Classroom. | Pending |
 
 ---
 
@@ -173,14 +185,22 @@ SynthGuard-Ops/
 ├── tests/                            # Test suite
 │   ├── conftest.py
 │   ├── test_config.py
+│   ├── test_evaluate_stage.py
+│   ├── test_export.py
 │   ├── test_fidelity.py
 │   ├── test_generators.py
+│   ├── test_metric_known_answers.py
 │   ├── test_mlflow_utils.py
+│   ├── test_params_wiring.py         # Hyperparameters & DVC wiring tests (T15)
 │   ├── test_privacy.py
+│   ├── test_register_stage.py
+│   ├── test_registry.py
+│   ├── test_runner.py                # Generator training runner & stage guards (T20)
+│   ├── test_score.py
 │   ├── test_split.py
 │   ├── test_utility.py
 │   └── test_validation.py
-├── dvc.yaml                          # DVC pipeline stage definitions (download -> generate)
+├── dvc.yaml                          # DVC pipeline stage definitions (download -> register)
 ├── dvc.lock                          # Pinned stage inputs, outputs, and hashes
 ├── Makefile                          # Command runners (setup, lint, test, reproduce)
 ├── params.yaml                       # Pipeline hyperparameters & configuration
