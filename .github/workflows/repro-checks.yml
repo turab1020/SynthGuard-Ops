@@ -10,6 +10,8 @@ on:
 jobs:
   determinism:
     name: Linux determinism (${{ matrix.mode }})
+    # skip with "[fresh-clone-only]" in the pushed commit message
+    if: ${{ !contains(github.event.head_commit.message, '[fresh-clone-only]') }}
     runs-on: ubuntu-latest
     timeout-minutes: 120
     strategy:
