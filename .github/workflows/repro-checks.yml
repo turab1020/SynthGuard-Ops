@@ -1,0 +1,71 @@
+name: Reproducibility checks
+
+# Long-running checks (full 100-epoch training on CPU), so not part of every PR:
+# run on demand from the Actions tab, or by pushing to a turab/repro-* branch.
+on:
+  workflow_dispatch:
+  push:
+    branches: ["turab/repro-*"]
+
+jobs:
+  determinism:
+    name: Linux determinism (${{ matrix.mode }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        mode: [default, det]
+    env:
+      MLFLOW_DISABLE_AGENT_HINT: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: requirements.lock
+      - name: Install (same as CI and the Docker image)
+        run: |
+          python -m venv .venv
+          .venv/bin/pip install --upgrade pip
+          .venv/bin/pip install "$(grep -E '^torch==' requirements.lock)" \
+            --index-url https://download.pytorch.org/whl/cpu
+          grep -vE '^torch==' requirements.lock > /tmp/req.txt
+          .venv/bin/pip install -r /tmp/req.txt
+          .venv/bin/pip install --no-deps -e .
+      - name: Rebuild processed data (download -> validate -> prepare)
+        run: PATH="$PWD/.venv/bin:$PATH" .venv/bin/dvc repro prepare
+      - name: Retrain CTGAN + TVAE, run A
+        run: .venv/bin/python scripts/determinism_check.py linux-${{ matrix.mode }}-A out ${{ matrix.mode }}
+      - name: Retrain CTGAN + TVAE, run B
+        run: .venv/bin/python scripts/determinism_check.py linux-${{ matrix.mode }}-B out ${{ matrix.mode }}
+      - name: Compare with each other and with the committed (macOS) outputs
+        run: .venv/bin/python scripts/compare_runs.py out/*.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: determinism-${{ matrix.mode }}
+          path: out/*.json
+
+  fresh-clone:
+    name: Fresh clone + docker compose run --rm pipeline
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - name: The one command
+        run: |
+          export HOST_UID=$(id -u) HOST_GID=$(id -g) GIT_COMMIT=$(git rev-parse HEAD)
+          time docker compose run --rm pipeline
+      - name: Compare produced metrics with the committed ones (tolerance 0.02)
+        run: python3 scripts/compare_outputs.py 0.02
+      - name: Files changed by the run
+        if: always()
+        run: git status --short && git diff --stat
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: fresh-clone-metrics
+          path: |
+            metrics/*.json
+            reports/eval/
