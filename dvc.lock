@@ -339,3 +339,60 @@ stages:
       md5: 2b7ead62cbf49d29f089efddf0a7b8d8.dir
       size: 1885
       nfiles: 2
+  register:
+    cmd: python -m synthguard.stages.register
+    deps:
+    - path: metrics/evaluation.json
+      hash: md5
+      md5: 37bf56d48b6d63047a33f35be0db6768
+      size: 4461
+    - path: metrics/runs_baselines.json
+      hash: md5
+      md5: 10ca0affecc45aaf6d4479b791b3ce94
+      size: 165
+    - path: metrics/runs_primary.json
+      hash: md5
+      md5: 39b2d669b6cc98cf77bbca66a44ac25a
+      size: 95
+    - path: models/ctgan.pkl
+      hash: md5
+      md5: 81a8bd4ea4a9b7a5e28733b9e8ece78a
+      size: 3255486
+    - path: models/gaussian_copula.pkl
+      hash: md5
+      md5: 97b6bab30b934aa3b8b6447eb6b75a28
+      size: 219607
+    - path: models/marginal.pkl
+      hash: md5
+      md5: 6b530946981958c03311ae9ac9b5d8db
+      size: 1096812
+    - path: models/tvae.pkl
+      hash: md5
+      md5: f53899ddf9e6f5547cc8a06f766b0e62
+      size: 710411
+    - path: src/synthguard/stages/register.py
+      hash: md5
+      md5: 1b50e37e5c5ad869eb30b1cfef8cf17e
+      size: 2747
+    - path: src/synthguard/tracking/pyfunc_model.py
+      hash: md5
+      md5: 1ccec09f82290df2a6a46cd0215d628b
+      size: 1477
+    - path: src/synthguard/tracking/registry.py
+      hash: md5
+      md5: 17646023cd8ad13b711632e62c7fa6a5
+      size: 1716
+    params:
+      params.yaml:
+        selection:
+          weights:
+            quality: 0.5
+            utility: 0.5
+          gate:
+            mia_auc_max: 0.6
+            exact_match_max: 0.01
+    outs:
+    - path: metrics/registered.json
+      hash: md5
+      md5: a0ec0583f862034d8ca7d325fbbbeb97
+      size: 553

@@ -1,0 +1,18 @@
+{
+  "model_name": "synthguard-generator",
+  "alias": "champion",
+  "version": "1",
+  "model_uri": "models:/synthguard-generator@champion",
+  "generator": "ctgan",
+  "privacy_gate": "passed",
+  "run_id": "266e7453f26443a78a0fd447e43816b4",
+  "selection_score": 0.9058787537490525,
+  "quality_score": 0.8558630700606604,
+  "utility_ratio": 0.9558944374374445,
+  "tstr_rf_roc_auc": 0.8689161950205183,
+  "mia_auc": 0.4923035,
+  "mia_advantage": 0.008000000000000007,
+  "exact_match_rate": 0.0,
+  "dcr_ratio": 12.953526125816389,
+  "fit_seconds": 155.0163
+}

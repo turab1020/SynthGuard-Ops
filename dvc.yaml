@@ -129,3 +129,22 @@ stages:
     metrics:
       - metrics/evaluation.json:
           cache: false
+
+  register:
+    cmd: python -m synthguard.stages.register
+    deps:
+      - metrics/evaluation.json
+      - metrics/runs_baselines.json
+      - metrics/runs_primary.json
+      - models/marginal.pkl
+      - models/gaussian_copula.pkl
+      - models/ctgan.pkl
+      - models/tvae.pkl
+      - src/synthguard/stages/register.py
+      - src/synthguard/tracking/registry.py
+      - src/synthguard/tracking/pyfunc_model.py
+    params:
+      - selection
+    metrics:
+      - metrics/registered.json:
+          cache: false
