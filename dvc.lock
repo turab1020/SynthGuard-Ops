@@ -294,8 +294,8 @@ stages:
       size: 2357
     - path: src/synthguard/evaluation/privacy.py
       hash: md5
-      md5: 21a82d8dca7e5f338df94eec0d20ad1f
-      size: 3406
+      md5: 42aa9460569f7fe65f5e4a72512be681
+      size: 3646
     - path: src/synthguard/evaluation/score.py
       hash: md5
       md5: 254afa30d8dec365d082a7f10fffcc93
