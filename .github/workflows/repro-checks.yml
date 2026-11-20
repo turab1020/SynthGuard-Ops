@@ -4,14 +4,22 @@ name: Reproducibility checks
 # run on demand from the Actions tab, or by pushing to a turab/repro-* branch.
 on:
   workflow_dispatch:
+    inputs:
+      determinism:
+        description: "Also run the Linux determinism jobs (~25 min)"
+        type: boolean
+        default: false
   push:
     branches: ["turab/repro-*"]
 
 jobs:
   determinism:
     name: Linux determinism (${{ matrix.mode }})
-    # skip with "[fresh-clone-only]" in the pushed commit message
-    if: ${{ !contains(github.event.head_commit.message, '[fresh-clone-only]') }}
+    # manual runs: only when the "determinism" box is ticked; pushes: skip with "[fresh-clone-only]"
+    if: >-
+      ${{ (github.event_name == 'workflow_dispatch' && inputs.determinism) ||
+          (github.event_name == 'push' &&
+           !contains(github.event.head_commit.message, '[fresh-clone-only]')) }}
     runs-on: ubuntu-latest
     timeout-minutes: 120
     strategy:
@@ -67,7 +75,9 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: fresh-clone-metrics
+          name: fresh-clone-outputs
           path: |
+            dvc.lock
             metrics/*.json
             reports/eval/
+            reports/validation/
