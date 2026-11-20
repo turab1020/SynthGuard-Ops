@@ -14,6 +14,10 @@ services:
     user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
     environment:
       HOME: /tmp
+      # host uids other than 1000 have no /etc/passwd entry in the image; tools that look up
+      # the user name (DVC via getpass) read these instead of failing
+      USER: synthguard
+      LOGNAME: synthguard
       MLFLOW_TRACKING_URI: sqlite:////app/mlflow.db
     command: make reproduce
 
@@ -24,6 +28,8 @@ services:
     user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
     environment:
       HOME: /tmp
+      USER: synthguard
+      LOGNAME: synthguard
     # Host port 5001 (macOS AirPlay already uses 5000).
     ports:
       - "5001:5000"
