@@ -99,3 +99,33 @@ stages:
     metrics:
       - metrics/primary.json:
           cache: false
+
+  evaluate:
+    cmd: python -m synthguard.stages.evaluate
+    deps:
+      - data/processed/train.csv
+      - data/processed/holdout.csv
+      - data/processed/metadata.json
+      - data/synthetic/marginal.csv
+      - data/synthetic/gaussian_copula.csv
+      - data/synthetic/ctgan.csv
+      - data/synthetic/tvae.csv
+      - metrics/baselines.json
+      - metrics/primary.json
+      - metrics/runs_baselines.json
+      - metrics/runs_primary.json
+      - src/synthguard/evaluation/fidelity.py
+      - src/synthguard/evaluation/utility.py
+      - src/synthguard/evaluation/privacy.py
+      - src/synthguard/evaluation/score.py
+      - src/synthguard/stages/evaluate.py
+    params:
+      - seed
+      - evaluation
+      - selection
+    outs:
+      - reports/eval:
+          cache: false
+    metrics:
+      - metrics/evaluation.json:
+          cache: false
