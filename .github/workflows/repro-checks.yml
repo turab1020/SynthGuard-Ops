@@ -67,6 +67,10 @@ jobs:
         run: |
           export HOST_UID=$(id -u) HOST_GID=$(id -g) GIT_COMMIT=$(git rev-parse HEAD)
           time docker compose run --rm pipeline
+      - name: Export MLflow evidence from the same run
+        run: |
+          export HOST_UID=$(id -u) HOST_GID=$(id -g)
+          docker compose run --rm pipeline make export
       - name: Compare produced metrics with the committed ones (tolerance 0.02)
         run: python3 scripts/compare_outputs.py 0.02
       - name: Files changed by the run
@@ -81,3 +85,14 @@ jobs:
             metrics/*.json
             reports/eval/
             reports/validation/
+            submission/mlflow_runs.csv
+            submission/registered_models.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: fresh-clone-mlflow
+          path: |
+            mlflow.db
+            mlruns/
+            mlartifacts/
+          if-no-files-found: warn
