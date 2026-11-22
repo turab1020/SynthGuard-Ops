@@ -33,13 +33,13 @@ SynthGuard-Ops enforces strict quality and privacy gates, tracks every candidate
 
 ```mermaid
 flowchart LR
-    A["download\n(UCI Adult + SHA-256)"] --> B["validate\n(Pandera Schemas)"]
-    B --> C["prepare\n(Clean + Stratified Split)"]
-    C --> D["baselines\n(Marginal + Copula)"]
-    D --> E["generate\n(CTGAN + TVAE)"]
-    D --> F["evaluate\n(Fidelity + Utility + Privacy)"]
+    A["download<br/>(UCI Adult + SHA-256)"] --> B["validate<br/>(Pandera Schemas)"]
+    B --> C["prepare<br/>(Clean + Stratified Split)"]
+    C --> D["baselines<br/>(Marginal + Copula)"]
+    D --> E["generate<br/>(CTGAN + TVAE)"]
+    D --> F["evaluate<br/>(Fidelity + Utility + Privacy)"]
     E --> F
-    F --> G["register\n(Quality Gate + Champion Model)"]
+    F --> G["register<br/>(Quality Gate + Champion Model)"]
 
     classDef completed fill:#d4edda,stroke:#28a745,stroke-width:2px;
     class A,B,C,D,E,F,G completed;
