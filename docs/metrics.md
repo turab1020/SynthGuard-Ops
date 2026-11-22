@@ -43,6 +43,15 @@ These numbers measure one specific attacker on one sample; a low value is eviden
 ## 5. Selection (registering the top generator)
 1. **Privacy gate** — pass iff `mia_auc ≤ 0.60` **and** `exact_match_rate ≤ 0.01`.
 2. **Score** — `selection_score = 0.5 · quality_score + 0.5 · utility_ratio`.
-3. Register the highest-scoring candidate that passes the gate (tag `privacy_gate=passed`).
-   If none passes, register the highest score overall and tag `privacy_gate=failed`.
-Ties: lower `mia_auc`, then lower `fit_seconds`.
+3. **Pool** — the candidates that pass the gate (tag `privacy_gate=passed`). If none passes, the
+   pool is every candidate and the registered model is tagged `privacy_gate=failed`.
+4. **Near-ties** — candidates in the pool whose `selection_score` is within
+   `selection.tie_tolerance` (0.02, inclusive) of the pool's best are treated as tied.
+5. **Winner** — among the tied, the lowest `fit_seconds` (cheapest to train); then the higher
+   `selection_score`, then the lower `mia_auc`.
+
+Why a tolerance: retraining CTGAN/TVAE is bit-identical on one machine, but arm64 (macOS) and
+x86_64 (Linux/Docker) CPUs produce slightly different networks. The measured drift in
+`selection_score` was up to 0.0087, enough to swap two candidates that differ by 0.001. Scores
+closer than the reproducibility tolerance (0.02) are not a meaningful difference, so the cheaper
+model is preferred; that choice is the same on every platform.

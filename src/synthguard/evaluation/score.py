@@ -31,21 +31,38 @@ def rank(candidates: dict[str, dict]) -> list[str]:
     )
 
 
-def select(candidates: dict[str, dict]) -> dict:
-    """Pick the top-ranked candidate that passed the gate; if none passed, the top overall.
+def select(candidates: dict[str, dict], tie_tolerance: float = 0.0) -> dict:
+    """Pick the generator to register.
 
-    Each candidate dict must already hold `selection_score`, `privacy_gate` ("passed"/"failed"),
+    1. Pool = candidates that passed the privacy gate (if none passed: all, tagged "failed").
+    2. Tied = pool members whose selection_score is within `tie_tolerance` of the pool's best
+       (inclusive). Scores closer than run-to-run / cross-platform drift are not a real difference.
+    3. Among the tied, the fastest to train wins (lower fit_seconds); then higher score, then
+       lower mia_auc.
+
+    Each candidate dict must hold `selection_score`, `privacy_gate` ("passed"/"failed"),
     `mia_auc` and optionally `fit_seconds`.
     """
     if not candidates:
         raise ValueError("no candidates to select from")
     passed = {g: m for g, m in candidates.items() if m["privacy_gate"] == "passed"}
     pool = passed or candidates
-    winner = rank(pool)[0]
+    best = max(m["selection_score"] for m in pool.values())
+    tied = [g for g, m in pool.items() if best - m["selection_score"] <= tie_tolerance + 1e-12]
+    winner = min(
+        tied,
+        key=lambda g: (
+            pool[g].get("fit_seconds", float("inf")),
+            -pool[g]["selection_score"],
+            pool[g]["mia_auc"],
+        ),
+    )
     return {
         "generator": winner,
         "privacy_gate": "passed" if passed else "failed",
         "selection_score": candidates[winner]["selection_score"],
+        "tie_tolerance": tie_tolerance,
+        "tied": sorted(tied),
         "ranking": rank(candidates),
         "passed_gate": sorted(passed),
     }

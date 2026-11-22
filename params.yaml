@@ -21,6 +21,9 @@ evaluation:
 selection:
   weights: {quality: 0.5, utility: 0.5}
   gate: {mia_auc_max: 0.60, exact_match_max: 0.01}
+  # scores within this of the best (among gate-passers) count as tied; fastest to train wins.
+  # 0.02 = the reproducibility tolerance; measured arm64 vs x86_64 drift was 0.0087.
+  tie_tolerance: 0.02
 smoke:
   rows: 1000
   epochs: 1
