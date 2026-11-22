@@ -1,0 +1,26 @@
+[
+  {
+    "name": "synthguard-generator",
+    "aliases": {
+      "champion": 1
+    },
+    "versions": [
+      {
+        "version": "1",
+        "run_id": "7b28e945a03948eebf4e2c0ab69f855f",
+        "status": "READY",
+        "created": "2026-11-22T10:21:22.223000+00:00",
+        "aliases": [
+          "champion"
+        ],
+        "tags": {
+          "generator": "tvae",
+          "selection_score": "0.908011",
+          "privacy_gate": "passed",
+          "git_commit": "452430e2e14288106b4ffbbac980dc1cf3f97713",
+          "data_train_md5": "d752643c8a256c4b8101e70429854520"
+        }
+      }
+    ]
+  }
+]
