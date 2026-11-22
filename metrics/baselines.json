@@ -1,14 +1,14 @@
 {
   "marginal": {
     "rows": 9762,
-    "fit_seconds": 0.0078,
-    "peak_memory_mb": 506.0625,
-    "sample_seconds": 0.0112
+    "fit_seconds": 0.0112,
+    "peak_memory_mb": 550.0781,
+    "sample_seconds": 0.0133
   },
   "gaussian_copula": {
     "rows": 9762,
-    "fit_seconds": 3.3547,
-    "peak_memory_mb": 519.9531,
-    "sample_seconds": 0.1755
+    "fit_seconds": 4.7745,
+    "peak_memory_mb": 569.1797,
+    "sample_seconds": 0.2665
   }
 }

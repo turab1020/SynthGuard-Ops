@@ -1,14 +1,14 @@
 {
   "ctgan": {
     "rows": 9762,
-    "fit_seconds": 155.0163,
-    "peak_memory_mb": 631.2188,
-    "sample_seconds": 0.1511
+    "fit_seconds": 342.9162,
+    "peak_memory_mb": 740.3008,
+    "sample_seconds": 0.3747
   },
   "tvae": {
     "rows": 9762,
-    "fit_seconds": 37.4408,
-    "peak_memory_mb": 580.2656,
-    "sample_seconds": 0.0847
+    "fit_seconds": 73.4998,
+    "peak_memory_mb": 783.1602,
+    "sample_seconds": 0.1307
   }
 }
