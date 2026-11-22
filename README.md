@@ -240,6 +240,25 @@ Notes
   so files written into the clone are owned by you.
 - Without Docker: `make setup && make reproduce`.
 
+### 🔁 What "reproduces" means here
+
+**The one command reproduces the registered model choice (TVAE), with selection scores within ±0.02 across CPU types.** Scores are not bit-identical across CPU models: repeated runs on one machine are identical, but different CPUs use different low-level numeric routines, so CTGAN and TVAE train to slightly different networks.
+
+Committed reference: Docker fresh-clone run on GitHub Actions (x86_64 Linux), TVAE **0.908011**, CTGAN **0.900101**.
+
+| Environment | CTGAN score (Δ vs reference) | TVAE score (Δ vs reference) | Selected by the tie rule |
+|---|---|---|---|
+| **Reference** (Docker, x86_64 Linux) | 0.900101 | 0.908011 | TVAE |
+| AMD EPYC 9V45 / 9V74 | 0.897160 (−0.0029) | 0.905247 (−0.0028) | TVAE |
+| Intel Xeon Platinum 8573C | 0.900956 (+0.0009) | 0.905794 (−0.0022) | TVAE |
+| macOS arm64 (native, no Docker) | 0.905879 (+0.0058) | 0.904732 (−0.0033) | TVAE |
+| Intel Xeon 8573C, AVX2 forced (diagnostic) | 0.903353 (+0.0033) | 0.895534 (−0.0125) | TVAE |
+
+- Largest difference from the reference: **0.0125**, inside the ±0.02 tolerance.
+- CTGAN and TVAE are closer than this CPU-to-CPU variation, so `selection.tie_tolerance: 0.02` in `params.yaml` treats them as tied and picks the faster to train (TVAE, 4–5× faster on every CPU measured).
+- Scope of the evidence: the reference and macOS rows are full pipeline runs. The other rows retrain and score CTGAN and TVAE only, with the rule applied to those two scores.
+- Known limit: Gaussian Copula (0.8827) is 0.0253 below the reference top score. If a machine's top score fell below about 0.9027, it would join the tie and win as the fastest. The closest case measured was 0.9029 (0.0202 above it).
+
 ### 1. Environment Setup
 ```bash
 # Create venv and install package in editable mode with dev dependencies
