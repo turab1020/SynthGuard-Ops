@@ -163,7 +163,7 @@ Registered model: **TVAE**, `synthguard-generator` version 1, alias `champion`. 
 | **T20** | Nufil | Data/Generation | Expand unit tests for synthetic data distributions, column structures, and generator determinism. | **Done** (PR #19) |
 | **T21** | Faizan | Evaluation | Unit tests with synthetic known-answer fixtures for composite score and gate logic. | **Done** (PR #16) |
 | **T22** | Nufil | Verification | Fresh-clone reproduction audit to verify score reproducibility within tolerance ($\pm 0.02$). | **Done** (PR #26) |
-| **T23** | Faizan | Documentation | Compile model comparison and selection evidence table in `reports/results.md`. | In review |
+| **T23** | Faizan | Documentation | Compile model comparison and selection evidence table in `reports/results.md`. | **Done** (PR #25) |
 | **T24** | Turab | Platform | Generate MLflow run exports (`submission/mlflow_runs.csv`) and UI screenshots. | Exports done; screenshots in `submission/screenshots/` |
 | **T25** | All | Buffer | Final code review, pre-commit audit, and branch cleanup. | Pending |
 | **T26** | Turab | Submission | Package deliverables and submit to Google Classroom. | Pending |
