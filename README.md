@@ -47,6 +47,37 @@ flowchart LR
 
 ---
 
+## 🎯 Deliverable 1: Requirements and Results
+
+### How each requirement is met
+
+| Requirement | How it is met | Where to check |
+|---|---|---|
+| Versioned data | DVC stages download, prepare and generate the data; `dvc.lock` pins every hash; the raw file has a pinned SHA-256 | [`dvc.yaml`](dvc.yaml), [`dvc.lock`](dvc.lock), [`.dvc/config`](.dvc/config), [`params.yaml`](params.yaml) |
+| Schema and quality checks before training | pandera checks columns, dtypes, ranges, categories, nulls and row count; the pipeline stops on bad input | [`schema.py`](src/synthguard/data/schema.py), [`test_validation.py`](tests/test_validation.py) |
+| Leakage-free split | Exact duplicates removed **before** a stratified 70/30 split (seed 42); generators see train only; a test asserts zero shared rows | [`prepare.py`](src/synthguard/data/prepare.py), [`test_split.py`](tests/test_split.py) |
+| Baseline before the primary model | The `baselines` stage (independent marginal, Gaussian Copula, real-data TRTR reference) must finish before `generate` (CTGAN, TVAE) | [`baselines.py`](src/synthguard/stages/baselines.py), [`dvc.yaml`](dvc.yaml) |
+| Experiment tracking | One MLflow run per candidate with hyperparameters, git commit, data hashes and all metrics | [`mlflow_runs.csv`](submission/mlflow_runs.csv), [`mlflow_utils.py`](src/synthguard/tracking/mlflow_utils.py) |
+| Registered top model | Privacy gate, then selection score and tie rule; winner registered as `synthguard-generator@champion` | [`registered_models.json`](submission/registered_models.json), [`registered.json`](metrics/registered.json), [`register.py`](src/synthguard/stages/register.py) |
+| One-command reproduction | `docker compose run --rm pipeline` rebuilds everything from a fresh clone | "Reproduce in one command" below, [`docker-compose.yml`](docker-compose.yml) |
+
+### Results
+
+Registered model: **TVAE**, `synthguard-generator` version 1, alias `champion`. Real-data reference (TRTR) Random Forest ROC-AUC: 0.9091.
+
+| Generator | Selection score | Quality | Utility ratio | MIA AUC | DCR ratio | Exact match | Fit time (s) |
+|---|---|---|---|---|---|---|---|
+| **TVAE (registered)** | 0.9080 | 0.8441 | 0.9719 | 0.4983 | 0.6267 | 0.0000 | 73.50 |
+| CTGAN | 0.9001 | 0.8457 | 0.9545 | 0.4907 | 12.9606 | 0.0000 | 342.92 |
+| Gaussian Copula (baseline) | 0.8827 | 0.8420 | 0.9234 | 0.4992 | 13.0881 | 0.0000 | 4.77 |
+| Independent marginal (baseline) | 0.6841 | 0.8787 | 0.4896 | 0.5024 | 13.1747 | 0.0000 | 0.01 |
+
+- All four candidates pass the privacy gate (MIA AUC ≤ 0.60, exact-match rate ≤ 0.01).
+- `selection_score = 0.5 × quality + 0.5 × utility_ratio`. Scores within 0.02 of the best are tied, and the faster to train wins. TVAE and CTGAN are tied; TVAE is both higher here and faster.
+- **TVAE's DCR ratio is 0.6267 (below 1):** its rows sit closer to training rows than real hold-out rows do, a mild memorisation signal. Its exact-match rate is 0.0000 and its MIA AUC is 0.4983 (about chance), so neither test shows a leak. DCR is reported but is not part of the D1 gate. These are empirical risk estimates, not formal privacy guarantees.
+
+---
+
 ## ✅ Work Completed So Far
 
 ### 1. Platform & Tooling Scaffolding (`T01` – `T03`, `T12`)
@@ -118,17 +149,17 @@ flowchart LR
 
 | Task ID | Owner | Workstream | Description | Status |
 |---|---|---|---|---|
-| **T14** | Faizan | Evaluation | Implement `evaluate` stage: run candidate evaluations, compute composite selection score, and apply privacy gate. | In progress |
+| **T14** | Faizan | Evaluation | Implement `evaluate` stage: run candidate evaluations, compute composite selection score, and apply privacy gate. | **Done** (PR #15, PR #21) |
 | **T15** | Nufil | Generation | Ensure generator parameters and RNG seeds are fully controlled via `params.yaml` with verified DVC repro triggers. | **Done** (PR #19) |
 | **T16** | Turab | Platform | Implement MLflow Model Registry stage: register champion generator under alias `champion`. | **Done** (PR #11, PR #14) |
-| **T17** | All | Milestone | Full end-to-end pipeline run from raw download through champion model registration. | In progress |
+| **T17** | All | Milestone | Full end-to-end pipeline run from raw download through champion model registration. | **Done** (PR #22) |
 | **T18** | Turab | Platform | Configure `docker-compose.yml` for zero-configuration, single-command pipeline reproduction. | **Done** (PR #10) |
 | **T19** | Turab | Platform | Setup GitHub Actions CI pipeline running linting, unit tests, determinism, and repro checks. | **Done** (PR #9, PR #17) |
 | **T20** | Nufil | Data/Generation | Expand unit tests for synthetic data distributions, column structures, and generator determinism. | **Done** (PR #19) |
 | **T21** | Faizan | Evaluation | Unit tests with synthetic known-answer fixtures for composite score and gate logic. | **Done** (PR #16) |
-| **T22** | Nufil | Verification | Fresh-clone reproduction audit to verify score reproducibility within tolerance ($\pm 0.02$). | Next up |
-| **T23** | Faizan | Documentation | Compile model comparison and selection evidence table in `reports/results.md`. | In progress |
-| **T24** | Turab | Platform | Generate MLflow run exports (`submission/mlflow_runs.csv`) and UI screenshots. | **Done** (PR #12) |
+| **T22** | Nufil | Verification | Fresh-clone reproduction audit to verify score reproducibility within tolerance ($\pm 0.02$). | In review |
+| **T23** | Faizan | Documentation | Compile model comparison and selection evidence table in `reports/results.md`. | In review |
+| **T24** | Turab | Platform | Generate MLflow run exports (`submission/mlflow_runs.csv`) and UI screenshots. | Exports done; screenshots in `submission/screenshots/` |
 | **T25** | All | Buffer | Final code review, pre-commit audit, and branch cleanup. | Pending |
 | **T26** | Turab | Submission | Package deliverables and submit to Google Classroom. | Pending |
 
@@ -255,6 +286,7 @@ Committed reference: Docker fresh-clone run on GitHub Actions (x86_64 Linux), TV
 | Intel Xeon 8573C, AVX2 forced (diagnostic) | 0.903353 (+0.0033) | 0.895534 (−0.0125) | TVAE |
 
 - Largest difference from the reference: **0.0125**, inside the ±0.02 tolerance.
+- Largest native Mac vs Linux gap: **0.0087** (CTGAN, 0.905879 on macOS arm64 vs 0.897160 on AMD EPYC).
 - CTGAN and TVAE are closer than this CPU-to-CPU variation, so `selection.tie_tolerance: 0.02` in `params.yaml` treats them as tied and picks the faster to train (TVAE, 4–5× faster on every CPU measured).
 - Scope of the evidence: the reference and macOS rows are full pipeline runs. The other rows retrain and score CTGAN and TVAE only, with the rule applied to those two scores.
 - Known limit: Gaussian Copula (0.8827) is 0.0253 below the reference top score. If a machine's top score fell below about 0.9027, it would join the tie and win as the fastest. The closest case measured was 0.9029 (0.0202 above it).
