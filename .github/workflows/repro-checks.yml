@@ -63,8 +63,6 @@ jobs:
     timeout-minutes: 120
     steps:
       - uses: actions/checkout@v4
-      - name: Record the CPU
-        run: lscpu | grep 'Model name' | tee cpu.txt
       - name: The one command
         run: |
           export HOST_UID=$(id -u) HOST_GID=$(id -g) GIT_COMMIT=$(git rev-parse HEAD)
@@ -83,7 +81,6 @@ jobs:
         with:
           name: fresh-clone-outputs
           path: |
-            cpu.txt
             dvc.lock
             metrics/*.json
             reports/eval/
