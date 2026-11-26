@@ -26,6 +26,9 @@ selection:
   tie_tolerance: 0.02
 # serving classifier (D2): XGBoost trained only on the champion generator's synthetic data
 classifier: {n_estimators: 300, max_depth: 6, learning_rate: 0.1}
+# evaluation gate (D2): a candidate classifier is blocked if its hold-out ROC-AUC drops more
+# than this below the production benchmark (metrics/classifier.json)
+gate: {max_drop: 0.01}
 smoke:
   rows: 1000
   epochs: 1
