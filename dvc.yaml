@@ -148,3 +148,21 @@ stages:
     metrics:
       - metrics/registered.json:
           cache: false
+
+  train_classifier:
+    cmd: python -m synthguard.stages.train_classifier
+    deps:
+      - metrics/registered.json
+      - data/synthetic/marginal.csv
+      - data/synthetic/gaussian_copula.csv
+      - data/synthetic/ctgan.csv
+      - data/synthetic/tvae.csv
+      - data/processed/holdout.csv
+      - src/synthguard/serving/classifier.py
+      - src/synthguard/stages/train_classifier.py
+    params:
+      - seed
+      - classifier
+    metrics:
+      - metrics/classifier.json:
+          cache: false

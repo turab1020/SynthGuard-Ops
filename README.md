@@ -2,7 +2,7 @@
 
 > **Quality-Gated Synthetic Tabular Data Pipeline**  
 > MLOps Course Project — FAST National University (BSCS 2023)  
-> Target: **Deliverable 1** (Due: Sun Nov 22, 2026)
+> Status: **Deliverable 1** (Completed) | **Deliverable 2** (In Progress)
 
 ---
 
@@ -24,7 +24,7 @@ SynthGuard-Ops enforces strict quality and privacy gates, tracks every candidate
 | Team Member | Role | Workstream & Ownership |
 |---|---|---|
 | **Turab Haider** | MLOps & Platform Lead | Project scaffolding, DVC pipeline configuration, MLflow tracking & Model Registry, Dockerization, CI/CD, Deliverable 1 submission. |
-| **Muhammad Nufil Anwer** | Data & Generation Lead | Data ingestion & integrity checks, Pandera schema validation, leakage-free data splits, synthetic generators (Marginal, Gaussian Copula, CTGAN, TVAE). |
+| **Muhammad Nufil Anwer** | Data & Generation Lead | Data ingestion & integrity checks, Pandera schema validation, leakage-free data splits, synthetic generators (Marginal, Gaussian Copula, CTGAN, TVAE), downstream income classifier (`train_classifier`). |
 | **Muhammad Faizan** | Evaluation & Metrics Lead | Metrics formalization, fidelity scoring (SDMetrics), downstream utility evaluation (TSTR/TRTR), privacy risk assessment (MIA, DCR), quality gating. |
 
 ---
@@ -40,9 +40,10 @@ flowchart LR
     D --> F["evaluate<br/>(Fidelity + Utility + Privacy)"]
     E --> F
     F --> G["register<br/>(Quality Gate + Champion Model)"]
+    G --> H["train_classifier<br/>(XGBoost on Champion Synth)"]
 
     classDef completed fill:#d4edda,stroke:#28a745,stroke-width:2px;
-    class A,B,C,D,E,F,G completed;
+    class A,B,C,D,E,F,G,H completed;
 ```
 
 ---
@@ -148,9 +149,25 @@ Registered model: **TVAE**, `synthguard-generator` version 1, alias `champion`. 
 - **Metric Invariance:** All four candidate generator selection scores matched the committed metrics to 6 decimal places (maximum absolute difference: `0.000000` vs tolerance $\pm 0.02$).
 - **Cross-Architecture Tolerance Analysis:** Evaluated floating-point drift across CPU architectures (AMD EPYC, Intel Xeon, macOS arm64). Even under forced AVX2 conditions, the largest difference observed was `0.0125`, comfortably within the `0.02` tie tolerance. Documented full audit findings in `reports/reproducibility.md`.
 
+### 9. Downstream Income Classifier on Champion Synthetic Data (`D2-02` — Merged via PR #28)
+- **Serving Classifier Pipeline (`src/synthguard/serving/classifier.py`):** Implemented an XGBoost income classifier pipeline (`OneHotEncoder(handle_unknown="ignore")` + `StandardScaler` fitted strictly on the training data), evaluated on the fixed real hold-out split across ROC-AUC, F1, accuracy, precision, and recall.
+- **DVC Stage (`train_classifier`):** Added `src/synthguard/stages/train_classifier.py` downstream of `register`. Trains exclusively on the champion generator's synthetic rows (**TVAE**), logs an MLflow run with `cloudpickle` serialization, registers `synthguard-classifier@champion`, and writes the production benchmark to `metrics/classifier.json`.
+- **Hyperparameters & Unit Tests:** Configured `classifier` hyperparameters in `params.yaml` and added tests in `tests/test_classifier.py` verifying hold-out scoring, determinism, unseen category handling, and single-class training data rejection.
+
 ---
 
-## ⏳ Pending Work (Roadmap to Deliverable 1)
+## 🗺️ Project Roadmap & Status
+
+### Deliverable 2 (Serving, Monitoring & Production Pipeline)
+
+| Task ID | Owner | Workstream | Description | Status |
+|---|---|---|---|---|
+| **D2-02** | Nufil | Serving / ML | Train downstream XGBoost income classifier on champion synthetic data (`train_classifier` stage), register `synthguard-classifier@champion`, and record `metrics/classifier.json`. | **Done** (PR #28) |
+| **D2 — Serving API** | Team | Serving | FastAPI inference service loading registered `synthguard-classifier@champion` with schema validation and health endpoints. | Pending |
+| **D2 — Drift & Monitoring** | Team | Monitoring | Data/prediction drift detection against `metrics/classifier.json` production benchmark and retraining triggers. | Pending |
+| **D2 — Container & CI/CD** | Team | Platform | Serving container image, end-to-end integration tests, and automated deployment workflow. | Pending |
+
+### Deliverable 1 (Completed)
 
 | Task ID | Owner | Workstream | Description | Status |
 |---|---|---|---|---|
@@ -164,9 +181,9 @@ Registered model: **TVAE**, `synthguard-generator` version 1, alias `champion`. 
 | **T21** | Faizan | Evaluation | Unit tests with synthetic known-answer fixtures for composite score and gate logic. | **Done** (PR #16) |
 | **T22** | Nufil | Verification | Fresh-clone reproduction audit to verify score reproducibility within tolerance ($\pm 0.02$). | **Done** (PR #26) |
 | **T23** | Faizan | Documentation | Compile model comparison and selection evidence table in `reports/results.md`. | **Done** (PR #25) |
-| **T24** | Turab | Platform | Generate MLflow run exports (`submission/mlflow_runs.csv`) and UI screenshots. | Exports done; screenshots in `submission/screenshots/` |
-| **T25** | All | Buffer | Final code review, pre-commit audit, and branch cleanup. | Pending |
-| **T26** | Turab | Submission | Package deliverables and submit to Google Classroom. | Pending |
+| **T24** | Turab | Platform | Generate MLflow run exports (`submission/mlflow_runs.csv`) and UI screenshots. | **Done** (PR #12, PR #27) |
+| **T25** | All | Buffer | Final code review, pre-commit audit, and branch cleanup. | **Done** |
+| **T26** | Turab | Submission | Package deliverables and submit to Google Classroom. | **Done** |
 
 ---
 
@@ -195,6 +212,7 @@ SynthGuard-Ops/
 ├── reports/                          # Generated evaluation and validation reports
 │   ├── eval/                         # Model comparison table & metrics (T23)
 │   ├── validation/                   # Pandera raw and processed schema check results
+│   ├── results.md                    # Deliverable 1 generator comparison summary (T23)
 │   └── reproducibility.md            # Fresh-clone reproduction audit report (T22)
 ├── src/synthguard/                   # Core Python package
 │   ├── config.py                     # Parameter loader & seed management
@@ -211,17 +229,28 @@ SynthGuard-Ops/
 │   ├── evaluation/                   # Evaluation modules (T10, T11, T13)
 │   │   ├── fidelity.py               # SDMetrics quality score & distributions
 │   │   ├── utility.py                # TRTR vs TSTR (RF & XGBoost)
-│   │   └── privacy.py                # DCR, exact match, MIA AUC
+│   │   ├── privacy.py                # DCR, exact match, MIA AUC
+│   │   └── score.py                  # Composite selection score & tie-breaking
+│   ├── serving/                      # Downstream classifier trained on synthetic data (D2-02)
+│   │   ├── __init__.py
+│   │   └── classifier.py             # XGBoost pipeline + real hold-out evaluation
 │   ├── stages/                       # Thin CLI entry points invoked by DVC
 │   │   ├── download.py
 │   │   ├── validate.py
 │   │   ├── prepare.py
 │   │   ├── baselines.py
-│   │   └── generate.py
-│   └── tracking/                     # MLflow experiment tracking utilities
-│       └── mlflow_utils.py
+│   │   ├── generate.py
+│   │   ├── evaluate.py
+│   │   ├── register.py
+│   │   └── train_classifier.py       # Champion synthetic-data classifier stage (D2-02)
+│   └── tracking/                     # MLflow experiment tracking & registry utilities
+│       ├── export.py
+│       ├── mlflow_utils.py
+│       ├── pyfunc_model.py
+│       └── registry.py
 ├── tests/                            # Test suite
 │   ├── conftest.py
+│   ├── test_classifier.py            # Synthetic-trained classifier & hold-out tests (D2-02)
 │   ├── test_config.py
 │   ├── test_evaluate_stage.py
 │   ├── test_export.py
@@ -238,7 +267,7 @@ SynthGuard-Ops/
 │   ├── test_split.py
 │   ├── test_utility.py
 │   └── test_validation.py
-├── dvc.yaml                          # DVC pipeline stage definitions (download -> register)
+├── dvc.yaml                          # DVC pipeline stage definitions (download -> train_classifier)
 ├── dvc.lock                          # Pinned stage inputs, outputs, and hashes
 ├── Makefile                          # Command runners (setup, lint, test, reproduce)
 ├── params.yaml                       # Pipeline hyperparameters & configuration
