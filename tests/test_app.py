@@ -128,3 +128,8 @@ def test_serving_import_does_not_load_torch_or_sdv():
             "print(bad); sys.exit(1 if bad else 0)")  # fmt: skip
     r = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True)
     assert r.returncode == 0, r.stdout + r.stderr
+
+
+def test_error_counter_starts_at_zero(client):
+    text = client.get("/metrics").text
+    assert 'synthguard_errors_total{endpoint="/predict"} 0.0' in text

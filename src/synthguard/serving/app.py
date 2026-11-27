@@ -189,6 +189,8 @@ def metrics():
 
 
 _ROUTES = {"/", "/health", "/predict", "/generate", "/metrics", "/docs", "/openapi.json"}
+for _route in ("/health", "/predict", "/generate", "/metrics"):
+    ERRORS.labels(_route)  # export 0 from the start, so dashboards show 0% instead of "no data"
 
 
 @lru_cache(maxsize=1)
