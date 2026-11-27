@@ -50,7 +50,18 @@ flowchart LR
 
 ## 🌐 Live deployment (Deliverable 2)
 
-**Live API:** https://synthguard-ops.onrender.com · interactive docs: https://synthguard-ops.onrender.com/docs
+| | URL |
+|---|---|
+| **Live UI** (Streamlit: form → prediction, confidence, SHAP chart) | https://synthguard-ui.onrender.com |
+| **Live API** (FastAPI) | https://synthguard-ops.onrender.com · docs: https://synthguard-ops.onrender.com/docs |
+
+> **Warm-up first.** Both run on Render's free tier and sleep after ~15 minutes without traffic; the first
+> request after a sleep takes about a minute. Before a demo, wake both:
+> ```bash
+> python scripts/smoke_test_api.py --url https://synthguard-ops.onrender.com --wait 180   # API: /health, /predict, /metrics
+> curl -s -m 180 https://synthguard-ui.onrender.com/_stcore/health                        # UI: prints "ok"
+> ```
+> The UI also waits for a sleeping API on its own (up to 3 minutes) and says so in the sidebar.
 
 | Endpoint | What it does |
 |---|---|
@@ -69,12 +80,14 @@ curl -s -X POST https://synthguard-ops.onrender.com/predict -H 'Content-Type: ap
 ```
 
 - **Hosting:** Render free Docker web service (Oregon), built from `Dockerfile.serve` (no torch/SDV, fits 512 MB).
-  The free instance sleeps when idle: the first request after a sleep takes about a minute.
-  Warm it up with `python scripts/smoke_test_api.py --url https://synthguard-ops.onrender.com`.
+  The free instance sleeps when idle (see the warm-up note above).
 - **Deploys only through the gate:** on every merge to `main`, `deploy.yml` runs lint, tests, data validation,
   the evaluation gate and a 512 MB image smoke test; only then it calls Render's deploy hook, waits until the
   live `/health` reports the new commit, and smoke-tests the live URL. Render auto-deploy is off.
-- **Streamlit UI (`ui/app.py`, `Dockerfile.ui`):** interactive web frontend built dynamically from `/openapi.json` (14-field form, live `>50K` / `<=50K` probability, confidence, log-odds TreeSHAP bar chart, sleeping-instance wake retries, and local synthetic row generation tab):
+  The PR workflow (`pr-gate.yml`) runs the same evaluation gate on every pull request and marks a worse
+  model as **BLOCKED** (example: PR #35). It is not a required branch-protection check; the deploy gate
+  above is what guarantees a worse model never reaches the live URL, even after a merge.
+- **Streamlit UI (`ui/app.py`, `Dockerfile.ui`), live at https://synthguard-ui.onrender.com** (second Render free web service, `SYNTHGUARD_API_URL` = the live API): interactive web frontend built dynamically from `/openapi.json` (14-field form, live `>50K` / `<=50K` probability, confidence, log-odds TreeSHAP bar chart, sleeping-instance wake retries, and local synthetic row generation tab):
   ```bash
   pip install -r ui/requirements.txt
   streamlit run ui/app.py                                           # against live Render API
