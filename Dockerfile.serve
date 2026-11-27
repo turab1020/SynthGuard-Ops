@@ -1,0 +1,31 @@
+# Serving image for Render (free tier: 512 MB RAM, port from $PORT).
+# No torch, no SDV: only what /health, /predict (+ TreeSHAP) and /metrics need.
+FROM python:3.11-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    SYNTHGUARD_MODEL_DIR=/app/deploy/model \
+    SYNTHGUARD_ENABLE_GENERATE=0
+
+WORKDIR /app
+
+# Same versions as the training environment (requirements.lock); xgboost-cpu = xgboost without GPU libs.
+COPY requirements.lock .
+RUN XGB=$(grep -E '^xgboost==' requirements.lock | cut -d= -f3) \
+    && grep -vE '^(xgboost|torch|nvidia-.*)==' requirements.lock > /tmp/constraints.txt \
+    && pip install -c /tmp/constraints.txt \
+        fastapi uvicorn pandas numpy scipy scikit-learn joblib prometheus-client pandera pyyaml \
+        "xgboost-cpu==${XGB}"
+
+COPY pyproject.toml .
+COPY src ./src
+RUN pip install --no-deps .
+COPY deploy/model ./deploy/model
+
+RUN useradd --create-home --uid 1000 synthguard
+USER synthguard
+
+EXPOSE 8000
+CMD ["sh", "-c", "uvicorn synthguard.serving.app:app --host 0.0.0.0 --port ${PORT:-8000} --workers 1"]

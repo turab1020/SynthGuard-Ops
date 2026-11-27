@@ -5,14 +5,14 @@
   "model_uri": "models:/synthguard-generator@champion",
   "generator": "tvae",
   "privacy_gate": "passed",
-  "run_id": "7b28e945a03948eebf4e2c0ab69f855f",
-  "selection_score": 0.9080109573505195,
-  "quality_score": 0.8440929947550888,
-  "utility_ratio": 0.9719289199459502,
-  "tstr_rf_roc_auc": 0.883613165239105,
-  "mia_auc": 0.498266,
-  "mia_advantage": 0.011500000000000066,
+  "run_id": "58856a8224c64ebeacf9e07f66c9cc5d",
+  "selection_score": 0.9057944629284957,
+  "quality_score": 0.8434186831192128,
+  "utility_ratio": 0.9681702427377787,
+  "tstr_rf_roc_auc": 0.8801960257787327,
+  "mia_auc": 0.49141875,
+  "mia_advantage": 0.013499999999999956,
   "exact_match_rate": 0.0,
-  "dcr_ratio": 0.6267499176175925,
-  "fit_seconds": 73.4998
+  "dcr_ratio": 0.6296823495297835,
+  "fit_seconds": 61.17
 }

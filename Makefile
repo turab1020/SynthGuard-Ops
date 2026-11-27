@@ -8,7 +8,7 @@ ifeq ($(shell uname),Darwin)
 OMP_ENV := DYLD_LIBRARY_PATH=$(CURDIR)/$(VENV)/lib/python3.11/site-packages/torch/lib
 endif
 
-.PHONY: setup lint format test reproduce smoke ui lock export
+.PHONY: setup lint format test reproduce smoke ui lock export serve serve-docker
 
 setup:
 	python3.11 -m venv $(VENV)
@@ -44,3 +44,12 @@ lock:
 # MLflow evidence for submission: submission/mlflow_runs.csv + registered_models.json
 export:
 	$(PY) -m synthguard.tracking.export
+
+# Local API with /generate on (needs torch + SDV, i.e. the dev venv): http://localhost:8000/docs
+serve:
+	SYNTHGUARD_ENABLE_GENERATE=1 $(OMP_ENV) $(BIN)/uvicorn synthguard.serving.app:app --port 8000
+
+# The Render image, locally, with Render's memory limit
+serve-docker:
+	docker build -f Dockerfile.serve -t synthguard-serve .
+	docker run --rm --memory=512m -e PORT=8000 -p 8000:8000 synthguard-serve

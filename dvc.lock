@@ -158,19 +158,19 @@ stages:
       size: 1064386
     - path: metrics/baselines.json
       hash: md5
-      md5: 5e7aef2915f53313b1116f8a722be864
-      size: 263
+      md5: 5ffd2d8532bbca71b06554a3c358cacd
+      size: 261
     - path: metrics/runs_baselines.json
       hash: md5
-      md5: e9f43e7dffeebe5c2f35d6f1282624bf
+      md5: 319b32e86d99bc9f8bf3a1a8ada4b5f3
       size: 165
     - path: models/gaussian_copula.pkl
       hash: md5
-      md5: 5d38d1a2a40c1847063202045533de72
-      size: 219574
+      md5: fa84613e5a3a3df72b282280000a5d24
+      size: 219571
     - path: models/marginal.pkl
       hash: md5
-      md5: 3ce47dd72d23fcc14e0b2c879625be00
+      md5: 95654e9fdc80449764248b85b379473c
       size: 1096812
   generate:
     cmd: python -m synthguard.stages.generate
@@ -189,8 +189,8 @@ stages:
       size: 2479417
     - path: metrics/baselines.json
       hash: md5
-      md5: 5e7aef2915f53313b1116f8a722be864
-      size: 263
+      md5: 5ffd2d8532bbca71b06554a3c358cacd
+      size: 261
     - path: src/synthguard/generators/base.py
       hash: md5
       md5: 55d33804d4832924314fd2db7d692fd6
@@ -219,28 +219,28 @@ stages:
     outs:
     - path: data/synthetic/ctgan.csv
       hash: md5
-      md5: e03e4c2fef63239cf15670fded6bf3f9
-      size: 1071480
+      md5: 7dc672a396df5c231a65b5843dbc657e
+      size: 1067700
     - path: data/synthetic/tvae.csv
       hash: md5
-      md5: 7630dda2be006219dea3012825285a49
-      size: 1059274
+      md5: b8a03be595ef333a91047757c737cc25
+      size: 1061179
     - path: metrics/primary.json
       hash: md5
-      md5: 50a16ba9ff38589ef89ba0dd603ea871
-      size: 252
+      md5: 54c2ddf88c7411c8a3bfb2f837e6e822
+      size: 248
     - path: metrics/runs_primary.json
       hash: md5
-      md5: 49663fd4dcdad2ecf475fdedfce0e0a7
+      md5: 6c945226d7637f9fa0a86f921b6bf0e4
       size: 95
     - path: models/ctgan.pkl
       hash: md5
-      md5: cbd60812d38a5083ee7184c22ab998f1
-      size: 3255566
+      md5: 9bdb072a03d68876476d60a89189cbca
+      size: 3255593
     - path: models/tvae.pkl
       hash: md5
-      md5: 294ac11e25616b169cd3dfc266119f9c
-      size: 710454
+      md5: 83373c8490d153af4def036d97b922d1
+      size: 710456
   evaluate:
     cmd: python -m synthguard.stages.evaluate
     deps:
@@ -258,8 +258,8 @@ stages:
       size: 2479417
     - path: data/synthetic/ctgan.csv
       hash: md5
-      md5: e03e4c2fef63239cf15670fded6bf3f9
-      size: 1071480
+      md5: 7dc672a396df5c231a65b5843dbc657e
+      size: 1067700
     - path: data/synthetic/gaussian_copula.csv
       hash: md5
       md5: 5bdc73c9d3d3d168b83cc2a23180a666
@@ -270,23 +270,23 @@ stages:
       size: 1064386
     - path: data/synthetic/tvae.csv
       hash: md5
-      md5: 7630dda2be006219dea3012825285a49
-      size: 1059274
+      md5: b8a03be595ef333a91047757c737cc25
+      size: 1061179
     - path: metrics/baselines.json
       hash: md5
-      md5: 5e7aef2915f53313b1116f8a722be864
-      size: 263
+      md5: 5ffd2d8532bbca71b06554a3c358cacd
+      size: 261
     - path: metrics/primary.json
       hash: md5
-      md5: 50a16ba9ff38589ef89ba0dd603ea871
-      size: 252
+      md5: 54c2ddf88c7411c8a3bfb2f837e6e822
+      size: 248
     - path: metrics/runs_baselines.json
       hash: md5
-      md5: e9f43e7dffeebe5c2f35d6f1282624bf
+      md5: 319b32e86d99bc9f8bf3a1a8ada4b5f3
       size: 165
     - path: metrics/runs_primary.json
       hash: md5
-      md5: 49663fd4dcdad2ecf475fdedfce0e0a7
+      md5: 6c945226d7637f9fa0a86f921b6bf0e4
       size: 95
     - path: src/synthguard/evaluation/fidelity.py
       hash: md5
@@ -333,44 +333,44 @@ stages:
     outs:
     - path: metrics/evaluation.json
       hash: md5
-      md5: 68390f1db6523bf63cd085740372d2bc
-      size: 4601
+      md5: ece3876ff3781d7eec82fdaf80ecacb3
+      size: 4587
     - path: reports/eval
       hash: md5
-      md5: 524373aedc1ac00b78576c107d94d3bb.dir
-      size: 1981
+      md5: c336d3f1e751bc54986faf374577676e.dir
+      size: 1971
       nfiles: 2
   register:
     cmd: python -m synthguard.stages.register
     deps:
     - path: metrics/evaluation.json
       hash: md5
-      md5: 68390f1db6523bf63cd085740372d2bc
-      size: 4601
+      md5: ece3876ff3781d7eec82fdaf80ecacb3
+      size: 4587
     - path: metrics/runs_baselines.json
       hash: md5
-      md5: e9f43e7dffeebe5c2f35d6f1282624bf
+      md5: 319b32e86d99bc9f8bf3a1a8ada4b5f3
       size: 165
     - path: metrics/runs_primary.json
       hash: md5
-      md5: 49663fd4dcdad2ecf475fdedfce0e0a7
+      md5: 6c945226d7637f9fa0a86f921b6bf0e4
       size: 95
     - path: models/ctgan.pkl
       hash: md5
-      md5: cbd60812d38a5083ee7184c22ab998f1
-      size: 3255566
+      md5: 9bdb072a03d68876476d60a89189cbca
+      size: 3255593
     - path: models/gaussian_copula.pkl
       hash: md5
-      md5: 5d38d1a2a40c1847063202045533de72
-      size: 219574
+      md5: fa84613e5a3a3df72b282280000a5d24
+      size: 219571
     - path: models/marginal.pkl
       hash: md5
-      md5: 3ce47dd72d23fcc14e0b2c879625be00
+      md5: 95654e9fdc80449764248b85b379473c
       size: 1096812
     - path: models/tvae.pkl
       hash: md5
-      md5: 294ac11e25616b169cd3dfc266119f9c
-      size: 710454
+      md5: 83373c8490d153af4def036d97b922d1
+      size: 710456
     - path: src/synthguard/stages/register.py
       hash: md5
       md5: 1b50e37e5c5ad869eb30b1cfef8cf17e
@@ -396,5 +396,52 @@ stages:
     outs:
     - path: metrics/registered.json
       hash: md5
-      md5: 9775a3dff41afb328b67dbeba305ebb3
-      size: 549
+      md5: b628a1d72e8a0ce5ba2de989a49cb877
+      size: 550
+  train_classifier:
+    cmd: python -m synthguard.stages.train_classifier
+    deps:
+    - path: data/processed/holdout.csv
+      hash: md5
+      md5: e6afbfd240c35ea5436216df4ac152f6
+      size: 1062289
+    - path: data/synthetic/ctgan.csv
+      hash: md5
+      md5: 7dc672a396df5c231a65b5843dbc657e
+      size: 1067700
+    - path: data/synthetic/gaussian_copula.csv
+      hash: md5
+      md5: 5bdc73c9d3d3d168b83cc2a23180a666
+      size: 1071105
+    - path: data/synthetic/marginal.csv
+      hash: md5
+      md5: c7b468ba4eb5153ca3910ac217a2406f
+      size: 1064386
+    - path: data/synthetic/tvae.csv
+      hash: md5
+      md5: b8a03be595ef333a91047757c737cc25
+      size: 1061179
+    - path: metrics/registered.json
+      hash: md5
+      md5: b628a1d72e8a0ce5ba2de989a49cb877
+      size: 550
+    - path: src/synthguard/serving/classifier.py
+      hash: md5
+      md5: 0f6adaa04abe488101efe1082a9f4ecf
+      size: 1837
+    - path: src/synthguard/stages/train_classifier.py
+      hash: md5
+      md5: acb8f0b9cef39dc19732c92dd45264c8
+      size: 3023
+    params:
+      params.yaml:
+        classifier:
+          n_estimators: 300
+          max_depth: 6
+          learning_rate: 0.1
+        seed: 42
+    outs:
+    - path: metrics/classifier.json
+      hash: md5
+      md5: d23c2bd3c9656b80238feb99e017d68d
+      size: 392

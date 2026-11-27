@@ -64,18 +64,19 @@ flowchart LR
 
 ### Results
 
-Registered model: **TVAE**, `synthguard-generator` version 1, alias `champion`. Real-data reference (TRTR) Random Forest ROC-AUC: 0.9091.
+Registered model: **TVAE**, `synthguard-generator` version 1, alias `champion`. Real-data reference (TRTR) Random Forest ROC-AUC: 0.9091. Serving classifier trained only on TVAE's synthetic data: hold-out ROC-AUC 0.8844 (`metrics/classifier.json`, the production benchmark).
 
 | Generator | Selection score | Quality | Utility ratio | MIA AUC | DCR ratio | Exact match | Fit time (s) |
 |---|---|---|---|---|---|---|---|
-| **TVAE (registered)** | 0.9080 | 0.8441 | 0.9719 | 0.4983 | 0.6267 | 0.0000 | 73.50 |
-| CTGAN | 0.9001 | 0.8457 | 0.9545 | 0.4907 | 12.9606 | 0.0000 | 342.92 |
-| Gaussian Copula (baseline) | 0.8827 | 0.8420 | 0.9234 | 0.4992 | 13.0881 | 0.0000 | 4.77 |
+| **TVAE (registered)** | 0.9058 | 0.8434 | 0.9682 | 0.4914 | 0.6297 | 0.0000 | 61.17 |
+| CTGAN | 0.8984 | 0.8380 | 0.9587 | 0.4967 | 12.9558 | 0.0000 | 210.52 |
+| Gaussian Copula (baseline) | 0.8827 | 0.8420 | 0.9234 | 0.4992 | 13.0881 | 0.0000 | 4.14 |
 | Independent marginal (baseline) | 0.6841 | 0.8787 | 0.4896 | 0.5024 | 13.1747 | 0.0000 | 0.01 |
 
 - All four candidates pass the privacy gate (MIA AUC ≤ 0.60, exact-match rate ≤ 0.01).
 - `selection_score = 0.5 × quality + 0.5 × utility_ratio`. Scores within 0.02 of the best are tied, and the faster to train wins. TVAE and CTGAN are tied; TVAE is both higher here and faster.
-- **TVAE's DCR ratio is 0.6267 (below 1):** its rows sit closer to training rows than real hold-out rows do, a mild memorisation signal. Its exact-match rate is 0.0000 and its MIA AUC is 0.4983 (about chance), so neither test shows a leak. DCR is reported but is not part of the D1 gate. These are empirical risk estimates, not formal privacy guarantees.
+- **TVAE's DCR ratio is 0.6297 (below 1):** its rows sit closer to training rows than real hold-out rows do, a mild memorisation signal. Its exact-match rate is 0.0000 and its MIA AUC is 0.4914 (about chance), so neither test shows a leak. DCR is reported but is not part of the gate. These are empirical risk estimates, not formal privacy guarantees.
+- These are the Deliverable 2 reference numbers. The Deliverable 1 submission evidence in `submission/` comes from the D1 reference run (TVAE 0.9080); both select TVAE.
 
 ---
 
@@ -147,7 +148,7 @@ Registered model: **TVAE**, `synthguard-generator` version 1, alias `champion`. 
 ### 8. Fresh-Clone Reproducibility Audit (`T22` — Merged via PR #26)
 - **Zero-Config Reproduction Audit:** Verified that running `docker compose run --rm pipeline` from a fresh clone reproduces all outputs and registers the exact same champion model (**TVAE**).
 - **Metric Invariance:** All four candidate generator selection scores matched the committed metrics to 6 decimal places (maximum absolute difference: `0.000000` vs tolerance $\pm 0.02$).
-- **Cross-Architecture Tolerance Analysis:** Evaluated floating-point drift across CPU architectures (AMD EPYC, Intel Xeon, macOS arm64). Even under forced AVX2 conditions, the largest difference observed was `0.0125`, comfortably within the `0.02` tie tolerance. Documented full audit findings in `reports/reproducibility.md`.
+- **Cross-Architecture Tolerance Analysis:** Evaluated floating-point drift across CPU architectures (AMD EPYC, Intel Xeon, macOS arm64). Even under forced AVX2 conditions, the largest difference observed was `0.0103`, comfortably within the `0.02` tie tolerance. Documented full audit findings in `reports/reproducibility.md`.
 
 ### 9. Downstream Income Classifier on Champion Synthetic Data (`D2-02` — Merged via PR #28)
 - **Serving Classifier Pipeline (`src/synthguard/serving/classifier.py`):** Implemented an XGBoost income classifier pipeline (`OneHotEncoder(handle_unknown="ignore")` + `StandardScaler` fitted strictly on the training data), evaluated on the fixed real hold-out split across ROC-AUC, F1, accuracy, precision, and recall.
@@ -311,21 +312,24 @@ Notes
 
 **The one command reproduces the registered model choice (TVAE), with selection scores within ±0.02 across CPU types.** Scores are not bit-identical across CPU models: repeated runs on one machine are identical, but different CPUs use different low-level numeric routines, so CTGAN and TVAE train to slightly different networks.
 
-Committed reference: Docker fresh-clone run on GitHub Actions (x86_64 Linux), TVAE **0.908011**, CTGAN **0.900101**.
+Committed reference: Docker fresh-clone run on GitHub Actions (x86_64 Linux), TVAE **0.905794**, CTGAN **0.898364**. An independent fresh-clone run reproduced all four selection scores of this reference to 6 decimals.
 
 | Environment | CTGAN score (Δ vs reference) | TVAE score (Δ vs reference) | Selected by the tie rule |
 |---|---|---|---|
-| **Reference** (Docker, x86_64 Linux) | 0.900101 | 0.908011 | TVAE |
-| AMD EPYC 9V45 / 9V74 | 0.897160 (−0.0029) | 0.905247 (−0.0028) | TVAE |
-| Intel Xeon Platinum 8573C | 0.900956 (+0.0009) | 0.905794 (−0.0022) | TVAE |
-| macOS arm64 (native, no Docker) | 0.905879 (+0.0058) | 0.904732 (−0.0033) | TVAE |
-| Intel Xeon 8573C, AVX2 forced (diagnostic) | 0.903353 (+0.0033) | 0.895534 (−0.0125) | TVAE |
+| **Reference** (Docker fresh clone, x86_64 Linux; reproduced exactly by an independent run) | 0.898364 | 0.905794 | TVAE |
+| Docker fresh clone, two other runners | 0.893697 (−0.0047) | 0.905247 (−0.0005) | TVAE |
+| D1 reference run (AMD EPYC 7763) | 0.900101 (+0.0017) | 0.908011 (+0.0022) | TVAE |
+| AMD EPYC 9V45 / 9V74 ¹ | 0.897160 (−0.0012) | 0.905247 (−0.0005) | TVAE |
+| Intel Xeon Platinum 8573C ¹ | 0.900956 (+0.0026) | 0.905794 (−0.0000) | TVAE |
+| macOS arm64 (native, no Docker) | 0.905879 (+0.0075) | 0.904732 (−0.0011) | TVAE |
+| Intel Xeon 8573C, AVX2 forced (diagnostic) ¹ | 0.903353 (+0.0050) | 0.895534 (−0.0103) | TVAE |
 
-- Largest difference from the reference: **0.0125**, inside the ±0.02 tolerance.
+¹ Retrains and scores CTGAN and TVAE only (the rule applied to those two scores); the other rows are full pipeline runs.
+
+- Largest difference from the reference: **0.0103**, inside the ±0.02 tolerance.
 - Largest native Mac vs Linux gap: **0.0087** (CTGAN, 0.905879 on macOS arm64 vs 0.897160 on AMD EPYC).
 - CTGAN and TVAE are closer than this CPU-to-CPU variation, so `selection.tie_tolerance: 0.02` in `params.yaml` treats them as tied and picks the faster to train (TVAE, 4–5× faster on every CPU measured).
-- Scope of the evidence: the reference and macOS rows are full pipeline runs. The other rows retrain and score CTGAN and TVAE only, with the rule applied to those two scores.
-- Known limit: Gaussian Copula (0.8827) is 0.0253 below the reference top score. If a machine's top score fell below about 0.9027, it would join the tie and win as the fastest. The closest case measured was 0.9029 (0.0202 above it).
+- Known limit: Gaussian Copula (0.8827) is 0.0231 below the reference top score. If a machine's top score fell below about 0.9027, it would join the tie and win as the fastest. The closest case measured was 0.9034 (0.0207 above it).
 
 ### 1. Environment Setup
 ```bash
