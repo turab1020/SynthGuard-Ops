@@ -24,7 +24,7 @@ SynthGuard-Ops enforces strict quality and privacy gates, tracks every candidate
 | Team Member | Role | Workstream & Ownership |
 |---|---|---|
 | **Turab Haider** | MLOps & Platform Lead | Project scaffolding, DVC pipeline configuration, MLflow tracking & Model Registry, Dockerization, CI/CD, Deliverable 1 submission. |
-| **Muhammad Nufil Anwer** | Data & Generation Lead | Data ingestion & integrity checks, Pandera schema validation, leakage-free data splits, synthetic generators (Marginal, Gaussian Copula, CTGAN, TVAE), downstream income classifier (`train_classifier`), normal & drifted traffic simulation (`monitoring/simulate.py`). |
+| **Muhammad Nufil Anwer** | Data & Generation Lead | Data ingestion & integrity checks, Pandera schema validation, leakage-free data splits, synthetic generators (Marginal, Gaussian Copula, CTGAN, TVAE), downstream income classifier (`train_classifier`), traffic simulation (`monitoring/simulate.py`), Streamlit UI (`ui/`). |
 | **Muhammad Faizan** | Evaluation & Metrics Lead | Metrics formalization, fidelity scoring (SDMetrics), downstream utility evaluation (TSTR/TRTR), privacy risk assessment (MIA, DCR), quality gating. |
 
 ---
@@ -74,6 +74,12 @@ curl -s -X POST https://synthguard-ops.onrender.com/predict -H 'Content-Type: ap
 - **Deploys only through the gate:** on every merge to `main`, `deploy.yml` runs lint, tests, data validation,
   the evaluation gate and a 512 MB image smoke test; only then it calls Render's deploy hook, waits until the
   live `/health` reports the new commit, and smoke-tests the live URL. Render auto-deploy is off.
+- **Streamlit UI (`ui/app.py`, `Dockerfile.ui`):** interactive web frontend built dynamically from `/openapi.json` (14-field form, live `>50K` / `<=50K` probability, confidence, log-odds TreeSHAP bar chart, sleeping-instance wake retries, and local synthetic row generation tab):
+  ```bash
+  pip install -r ui/requirements.txt
+  streamlit run ui/app.py                                           # against live Render API
+  SYNTHGUARD_API_URL=http://localhost:8000 streamlit run ui/app.py  # against local API (enables Generate tab)
+  ```
 
 ---
 
@@ -217,6 +223,11 @@ Registered model: **TVAE**, `synthguard-generator` version 1, alias `champion`. 
 - **Simulation & Retraining Batch CLI (`scripts/simulate_traffic.py`):** Supports `send` (POSTs simulated requests to `/predict` and summarizes status/label rates) and `batch` (exports JSONL request bodies or labeled `--csv` batches for downstream retraining).
 - **Unit Tests (`tests/test_simulate.py`):** Verified deterministic seeded sampling, documented covariate shifts, schema-valid API payloads, `adult.test` parsing, and both CLI modes.
 
+### 12. Streamlit UI with Live Predictions & SHAP Explanations (`D2-07` — Merged via PR #41)
+- **Schema-Driven HTTP Client (`ui/client.py`):** Pure `requests`-based API client that builds all 14 form field specifications dynamically from the API's `/openapi.json` (enum dropdowns, numeric min/max bounds, schema defaults), wakes sleeping Render instances automatically, and surfaces field-level `422` validation errors cleanly.
+- **Interactive Prediction & SHAP Frontend (`ui/app.py`):** Displays predicted income class, $P(\text{income} > 50\text{K})$, confidence, and a directional log-odds TreeSHAP contribution chart (`top-k` features + `all other features` summing to the logit), plus a conditional **Generate** tab when running against a local generator-enabled API.
+- **Isolated Container & Tests (`Dockerfile.ui`, `ui/requirements.txt`, `tests/test_ui_client.py`):** Separate 512 MB Render-ready container (`$PORT`, `SYNTHGUARD_API_URL`) keeping `requirements.lock` and the API image untouched, verified by 8 in-process integration tests against the real FastAPI app.
+
 ---
 
 ## 🗺️ Project Roadmap & Status
@@ -228,6 +239,7 @@ Registered model: **TVAE**, `synthguard-generator` version 1, alias `champion`. 
 | **D2-02** | Nufil | Serving / ML | Train downstream XGBoost income classifier on champion synthetic data (`train_classifier` stage), register `synthguard-classifier@champion`, and record `metrics/classifier.json`. | **Done** (PR #28) |
 | **D2 — Explain & Gate** | Faizan | Serving / Eval | TreeSHAP feature explanations (`serving/explain.py`) and champion-challenger evaluation gate (`serving/gate.py`). | **Done** (PR #29) |
 | **D2 — Serving API & CD** | Turab | Serving / Platform | FastAPI inference service (`serving/app.py`), `Dockerfile.serve`, PR eval gate (`pr-gate.yml`), and gated Render CD (`deploy.yml`). | **Done** (PR #30, #31, #33) |
+| **D2-07** | Nufil | UI / Frontend | Schema-driven Streamlit UI (`ui/app.py`, `ui/client.py`), `Dockerfile.ui`, live predictions with TreeSHAP bar charts, and API integration tests (`tests/test_ui_client.py`). | **Done** (PR #41) |
 | **D2 — Observability & Drift** | Turab & Faizan | Monitoring | Prometheus + Grafana stack (`docker-compose.monitoring.yml`), Evidently drift check (`monitoring/drift.py`), and `drift-check.yml`. | **Done** (PR #34, #37–#39) |
 | **D2-10** | Nufil | Monitoring | Simulate normal & drifted live traffic and labeled retraining batches from unseen UCI `adult.test` (`monitoring/simulate.py`, `scripts/simulate_traffic.py`). | **Done** (PR #40) |
 | **D2 — Retraining Loop** | Team | Pipeline / CI | Automated/triggered retraining workflow appending new labeled batch, re-evaluating through quality/eval gates, and promoting updated model. | Pending |
@@ -260,6 +272,7 @@ SynthGuard-Ops/
 ├── .dockerignore                     # Docker build exclusions
 ├── Dockerfile                        # Multi-stage CPU pipeline container
 ├── Dockerfile.serve                  # Lightweight 512 MB FastAPI serving image
+├── Dockerfile.ui                     # Lightweight 512 MB Streamlit UI image (D2-07)
 ├── docker-compose.yml                # One-command pipeline reproduction
 ├── docker-compose.monitoring.yml     # Local API + Prometheus + Grafana stack
 ├── .dvc/                             # DVC internal configuration
@@ -357,8 +370,13 @@ SynthGuard-Ops/
 │   ├── test_score.py
 │   ├── test_simulate.py              # Normal/drifted traffic simulation & CLI tests (D2-10)
 │   ├── test_split.py
+│   ├── test_ui_client.py             # Streamlit UI client & OpenAPI schema tests (D2-07)
 │   ├── test_utility.py
 │   └── test_validation.py
+├── ui/                               # Streamlit web frontend (D2-07)
+│   ├── app.py                        # Live predictions, TreeSHAP chart & local Generate tab
+│   ├── client.py                     # Schema-driven API client & wake retry handler
+│   └── requirements.txt              # Isolated UI dependencies (streamlit, requests)
 ├── dvc.yaml                          # DVC pipeline stage definitions (download -> train_classifier)
 ├── dvc.lock                          # Pinned stage inputs, outputs, and hashes
 ├── Makefile                          # Command runners (setup, lint, test, reproduce)
