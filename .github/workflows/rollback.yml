@@ -1,0 +1,44 @@
+name: Rollback
+
+# Safe rollback of the served model: restore deploy/model + its benchmark from before the last model
+# change on main (or from a given ref) and push a rollback/* branch. Merging its PR redeploys through
+# deploy.yml (tests + eval gate against the restored benchmark, then the Render deploy hook).
+on:
+  workflow_dispatch:
+    inputs:
+      to:
+        description: Git ref to restore (empty = the model served before the last promotion)
+        default: ""
+
+permissions:
+  contents: write  # push the rollback/* branch
+
+jobs:
+  rollback:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Restore the previous model (git)
+        env:
+          TO: ${{ inputs.to }}
+        run: |
+          python3 scripts/rollback.py ${TO:+--to "$TO"}
+          cat reports/rollback.md >> "$GITHUB_STEP_SUMMARY"
+      - name: Push the rollback branch
+        run: |
+          branch="rollback/run-${{ github.run_id }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$branch"
+          git add deploy/model metrics/classifier.json reports/rollback.md
+          git commit -m "revert(model): roll back the served classifier (run ${{ github.run_number }})"
+          git push origin "$branch"
+          url="${{ github.server_url }}/${{ github.repository }}/compare/main...$branch?expand=1"
+          {
+            echo
+            echo "### Next: open the rollback PR"
+            echo "[Open PR for \`$branch\`]($url). Merging it redeploys the previous model (deploy.yml)."
+          } >> "$GITHUB_STEP_SUMMARY"
