@@ -24,7 +24,7 @@ SynthGuard-Ops enforces strict quality and privacy gates, tracks every candidate
 | Team Member | Role | Workstream & Ownership |
 |---|---|---|
 | **Turab Haider** | MLOps & Platform Lead | Project scaffolding, DVC pipeline configuration, MLflow tracking & Model Registry, Dockerization, CI/CD, Deliverable 1 submission. |
-| **Muhammad Nufil Anwer** | Data & Generation Lead | Data ingestion & integrity checks, Pandera schema validation, leakage-free data splits, synthetic generators (Marginal, Gaussian Copula, CTGAN, TVAE), downstream income classifier (`train_classifier`), traffic simulation (`monitoring/simulate.py`), Streamlit UI (`ui/`). |
+| **Muhammad Nufil Anwer** | Data & Generation Lead | Data ingestion & integrity checks, Pandera schema validation, leakage-free data splits, synthetic generators (Marginal, Gaussian Copula, CTGAN, TVAE), downstream income classifier (`train_classifier`), traffic simulation (`monitoring/simulate.py`), Streamlit UI (`ui/`), drift-triggered retraining (`retrain.yml`, `append_batch.py`). |
 | **Muhammad Faizan** | Evaluation & Metrics Lead | Metrics formalization, fidelity scoring (SDMetrics), downstream utility evaluation (TSTR/TRTR), privacy risk assessment (MIA, DCR), quality gating. |
 
 ---
@@ -241,6 +241,14 @@ Registered model: **TVAE**, `synthguard-generator` version 1, alias `champion`. 
 - **Interactive Prediction & SHAP Frontend (`ui/app.py`):** Displays predicted income class, $P(\text{income} > 50\text{K})$, confidence, and a directional log-odds TreeSHAP contribution chart (`top-k` features + `all other features` summing to the logit), plus a conditional **Generate** tab when running against a local generator-enabled API.
 - **Isolated Container & Tests (`Dockerfile.ui`, `ui/requirements.txt`, `tests/test_ui_client.py`):** Separate 512 MB Render-ready container (`$PORT`, `SYNTHGUARD_API_URL`) keeping `requirements.lock` and the API image untouched, verified by 8 in-process integration tests against the real FastAPI app.
 
+### 13. Rollback, Champion/Challenger Promotion & Drift-Triggered Retraining (`PR #43`, `PR #44`, `D2-12` — PR #45)
+- **Model Rollback (`PR #43`):** Added `scripts/rollback.py`, `.github/workflows/rollback.yml`, and `tests/test_rollback.py` to restore a prior deployed classifier artifact (`deploy/model/`) and synchronize MLflow registry state.
+- **Champion vs. Challenger Promotion (`PR #44`):** Added `src/synthguard/tracking/promotion.py`, `scripts/compare_promote.py`, and `tests/test_promotion.py` evaluating challenger against champion on the fixed hold-out before promoting.
+- **Drift-Triggered Retraining Workflow (`D2-12` — Merged via PR #45):**
+  - **Automated & Manual Retrain Loop (`.github/workflows/retrain.yml`):** Triggered via `repository_dispatch` (`drift-alert`) or `workflow_dispatch` (including `smoke` mode); reproduces the fixed hold-out (`dvc repro prepare`), seeds the deployed champion into a fresh registry, validates and appends a labeled `adult.test` batch, retrains and registers a `challenger` (`SYNTHGUARD_REGISTER_ALIAS=challenger`), runs `compare_promote.py`, opens a `promote/*` PR on promotion to deploy through the gate, and uploads retraining evidence artifacts.
+  - **Challenger Alias Isolation (`config.py`, `register.py`, `train_classifier.py`):** Supports `SYNTHGUARD_REGISTER_ALIAS` (default `champion`) and writes challenger metrics to `metrics/classifier_challenger.json` without overwriting the committed `metrics/classifier.json` benchmark.
+  - **Validated Batch Ingestion & Tests (`scripts/append_batch.py`, `tests/test_retrain.py`):** Enforces Pandera validation on incoming labeled batches, drops hold-out overlaps and duplicates before appending to `train.csv` (exiting non-zero with zero writes on invalid input), verified across unit tests.
+
 ---
 
 ## 🗺️ Project Roadmap & Status
@@ -252,11 +260,12 @@ Registered model: **TVAE**, `synthguard-generator` version 1, alias `champion`. 
 | **D2-02** | Nufil | Serving / ML | Train downstream XGBoost income classifier on champion synthetic data (`train_classifier` stage), register `synthguard-classifier@champion`, and record `metrics/classifier.json`. | **Done** (PR #28) |
 | **D2 — Explain & Gate** | Faizan | Serving / Eval | TreeSHAP feature explanations (`serving/explain.py`) and champion-challenger evaluation gate (`serving/gate.py`). | **Done** (PR #29) |
 | **D2 — Serving API & CD** | Turab | Serving / Platform | FastAPI inference service (`serving/app.py`), `Dockerfile.serve`, PR eval gate (`pr-gate.yml`), and gated Render CD (`deploy.yml`). | **Done** (PR #30, #31, #33) |
-| **D2-07** | Nufil | UI / Frontend | Schema-driven Streamlit UI (`ui/app.py`, `ui/client.py`), `Dockerfile.ui`, live predictions with TreeSHAP bar charts, and API integration tests (`tests/test_ui_client.py`). | **Done** (PR #41) |
+| **D2-07** | Nufil | UI / Frontend | Schema-driven Streamlit UI (`ui/app.py`, `ui/client.py`), `Dockerfile.ui`, live predictions with TreeSHAP bar charts, and live Render UI (`PR #42`). | **Done** (PR #41, #42) |
 | **D2 — Observability & Drift** | Turab & Faizan | Monitoring | Prometheus + Grafana stack (`docker-compose.monitoring.yml`), Evidently drift check (`monitoring/drift.py`), and `drift-check.yml`. | **Done** (PR #34, #37–#39) |
 | **D2-10** | Nufil | Monitoring | Simulate normal & drifted live traffic and labeled retraining batches from unseen UCI `adult.test` (`monitoring/simulate.py`, `scripts/simulate_traffic.py`). | **Done** (PR #40) |
-| **D2 — Retraining Loop** | Team | Pipeline / CI | Automated/triggered retraining workflow appending new labeled batch, re-evaluating through quality/eval gates, and promoting updated model. | Pending |
-| **D2 — Final Demo & Submission** | Team | Submission | End-to-end live drift & retraining demonstration, documentation polish, and Deliverable 2 submission. | Pending |
+| **D2 — Rollback & Promotion** | Turab & Faizan | Registry / CD | Model rollback (`scripts/rollback.py`, `rollback.yml`) and champion-challenger promotion logic (`tracking/promotion.py`, `compare_promote.py`). | **Done** (PR #43, #44) |
+| **D2-12** | Nufil | Pipeline / CI | Drift-triggered retraining workflow (`retrain.yml`), challenger alias isolation (`SYNTHGUARD_REGISTER_ALIAS`), and validated batch append (`scripts/append_batch.py`). | **Done** (PR #45) |
+| **D2 — Final Demo & Submission** | Team | Submission | End-to-end live drift, retraining & rollback demonstration, evidence capture, and Deliverable 2 submission. | In progress |
 
 ### Deliverable 1 (Completed)
 
@@ -282,6 +291,7 @@ Registered model: **TVAE**, `synthguard-generator` version 1, alias `champion`. 
 
 ```
 SynthGuard-Ops/
+├── .github/workflows/                # CI, PR eval gate, gated CD, drift check, retrain & rollback
 ├── .dockerignore                     # Docker build exclusions
 ├── Dockerfile                        # Multi-stage CPU pipeline container
 ├── Dockerfile.serve                  # Lightweight 512 MB FastAPI serving image
@@ -315,9 +325,12 @@ SynthGuard-Ops/
 │   ├── results.md                    # Generator comparison summary (T23)
 │   └── reproducibility.md            # Fresh-clone reproduction audit report (T22)
 ├── scripts/                          # Operational & CI/CD helper scripts
+│   ├── append_batch.py               # Pandera-validated, leakage-free batch append (D2-12)
 │   ├── check_drift.py                # Evidently drift check runner
+│   ├── compare_promote.py            # Champion vs. challenger comparison & promotion CLI
 │   ├── eval_gate.py                  # Champion-challenger evaluation gate CLI
 │   ├── export_models.py              # Export champion classifier into deploy/model/
+│   ├── rollback.py                   # Restore prior deployed model & registry version
 │   ├── simulate_traffic.py           # Send live traffic or generate normal/drifted batches (D2-10)
 │   └── smoke_test_api.py             # API health, predict & metrics smoke test
 ├── src/synthguard/                   # Core Python package
@@ -359,6 +372,7 @@ SynthGuard-Ops/
 │   └── tracking/                     # MLflow experiment tracking & registry utilities
 │       ├── export.py
 │       ├── mlflow_utils.py
+│       ├── promotion.py              # Champion vs. challenger hold-out promotion logic
 │       ├── pyfunc_model.py
 │       └── registry.py
 ├── tests/                            # Test suite
@@ -377,8 +391,11 @@ SynthGuard-Ops/
 │   ├── test_mlflow_utils.py
 │   ├── test_params_wiring.py         # Hyperparameters & DVC wiring tests (T15)
 │   ├── test_privacy.py
+│   ├── test_promotion.py
 │   ├── test_register_stage.py
 │   ├── test_registry.py
+│   ├── test_retrain.py               # Challenger alias & validated batch append tests (D2-12)
+│   ├── test_rollback.py
 │   ├── test_runner.py                # Generator training runner & stage guards (T20)
 │   ├── test_score.py
 │   ├── test_simulate.py              # Normal/drifted traffic simulation & CLI tests (D2-10)
