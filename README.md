@@ -24,7 +24,7 @@ SynthGuard-Ops enforces strict quality and privacy gates, tracks every candidate
 | Team Member | Role | Workstream & Ownership |
 |---|---|---|
 | **Turab Haider** | MLOps & Platform Lead | Project scaffolding, DVC pipeline configuration, MLflow tracking & Model Registry, Dockerization, CI/CD, Deliverable 1 submission. |
-| **Muhammad Nufil Anwer** | Data & Generation Lead | Data ingestion & integrity checks, Pandera schema validation, leakage-free data splits, synthetic generators (Marginal, Gaussian Copula, CTGAN, TVAE), downstream income classifier (`train_classifier`). |
+| **Muhammad Nufil Anwer** | Data & Generation Lead | Data ingestion & integrity checks, Pandera schema validation, leakage-free data splits, synthetic generators (Marginal, Gaussian Copula, CTGAN, TVAE), downstream income classifier (`train_classifier`), normal & drifted traffic simulation (`monitoring/simulate.py`). |
 | **Muhammad Faizan** | Evaluation & Metrics Lead | Metrics formalization, fidelity scoring (SDMetrics), downstream utility evaluation (TSTR/TRTR), privacy risk assessment (MIA, DCR), quality gating. |
 
 ---
@@ -91,6 +91,12 @@ docker compose -f docker-compose.monitoring.yml up --build
 
 Metrics exported by the API: `synthguard_requests_total`, `synthguard_request_latency_seconds`,
 `synthguard_errors_total`, `synthguard_predictions_total`, `synthguard_prediction_probability`, `synthguard_drift_share`.
+
+```bash
+# Send 400 normal vs. 400 drifted requests from unseen UCI adult.test rows
+python scripts/simulate_traffic.py send --url http://localhost:8000 --mode normal --n 400
+python scripts/simulate_traffic.py send --url http://localhost:8000 --mode drifted --n 400
+```
 
 ---
 
@@ -201,6 +207,16 @@ Registered model: **TVAE**, `synthguard-generator` version 1, alias `champion`. 
 - **DVC Stage (`train_classifier`):** Added `src/synthguard/stages/train_classifier.py` downstream of `register`. Trains exclusively on the champion generator's synthetic rows (**TVAE**), logs an MLflow run with `cloudpickle` serialization, registers `synthguard-classifier@champion`, and writes the production benchmark to `metrics/classifier.json`.
 - **Hyperparameters & Unit Tests:** Configured `classifier` hyperparameters in `params.yaml` and added tests in `tests/test_classifier.py` verifying hold-out scoring, determinism, unseen category handling, and single-class training data rejection.
 
+### 10. Serving API, Explainability, Gated CI/CD & Drift Monitoring (`PR #29` – `PR #39`)
+- **Explainability & Evaluation Gate (`PR #29`):** Added TreeSHAP per-request explanations (`src/synthguard/serving/explain.py`) and champion-vs-challenger evaluation gating (`src/synthguard/serving/gate.py`, `scripts/eval_gate.py`).
+- **FastAPI Service & Render Deployment (`PR #30`, `PR #31`, `PR #33`):** Built lightweight `Dockerfile.serve` and `src/synthguard/serving/app.py` (`/health`, `/predict`, `/metrics`, `/generate`), gated PR workflow (`pr-gate.yml`), and automated gated deployment (`deploy.yml`) to Render.
+- **Observability & Evidently Drift Detection (`PR #34`, `PR #37` – `PR #39`):** Configured local Prometheus + Grafana stack (`docker-compose.monitoring.yml`), live request logging/exposure, Evidently feature & prediction drift detection (`src/synthguard/monitoring/drift.py`, `scripts/check_drift.py`), and the `drift-check.yml` workflow.
+
+### 11. Normal & Drifted Traffic Simulation (`D2-10` — Merged via PR #40)
+- **Leakage-Free Traffic Generator (`src/synthguard/monitoring/simulate.py`):** Downloads and verifies UCI `adult.test` (pinned SHA-256; rows never seen in training or hold-out), cleans records identically to the training pipeline, and generates seeded `normal` or `drifted` batches (`age +15`, `hours_per_week ×1.4`, `education_num +2` capped to valid Pandera bounds, plus 60% white-collar occupation shift).
+- **Simulation & Retraining Batch CLI (`scripts/simulate_traffic.py`):** Supports `send` (POSTs simulated requests to `/predict` and summarizes status/label rates) and `batch` (exports JSONL request bodies or labeled `--csv` batches for downstream retraining).
+- **Unit Tests (`tests/test_simulate.py`):** Verified deterministic seeded sampling, documented covariate shifts, schema-valid API payloads, `adult.test` parsing, and both CLI modes.
+
 ---
 
 ## 🗺️ Project Roadmap & Status
@@ -210,9 +226,12 @@ Registered model: **TVAE**, `synthguard-generator` version 1, alias `champion`. 
 | Task ID | Owner | Workstream | Description | Status |
 |---|---|---|---|---|
 | **D2-02** | Nufil | Serving / ML | Train downstream XGBoost income classifier on champion synthetic data (`train_classifier` stage), register `synthguard-classifier@champion`, and record `metrics/classifier.json`. | **Done** (PR #28) |
-| **D2 — Serving API** | Team | Serving | FastAPI inference service loading registered `synthguard-classifier@champion` with schema validation and health endpoints. | Pending |
-| **D2 — Drift & Monitoring** | Team | Monitoring | Data/prediction drift detection against `metrics/classifier.json` production benchmark and retraining triggers. | Pending |
-| **D2 — Container & CI/CD** | Team | Platform | Serving container image, end-to-end integration tests, and automated deployment workflow. | Pending |
+| **D2 — Explain & Gate** | Faizan | Serving / Eval | TreeSHAP feature explanations (`serving/explain.py`) and champion-challenger evaluation gate (`serving/gate.py`). | **Done** (PR #29) |
+| **D2 — Serving API & CD** | Turab | Serving / Platform | FastAPI inference service (`serving/app.py`), `Dockerfile.serve`, PR eval gate (`pr-gate.yml`), and gated Render CD (`deploy.yml`). | **Done** (PR #30, #31, #33) |
+| **D2 — Observability & Drift** | Turab & Faizan | Monitoring | Prometheus + Grafana stack (`docker-compose.monitoring.yml`), Evidently drift check (`monitoring/drift.py`), and `drift-check.yml`. | **Done** (PR #34, #37–#39) |
+| **D2-10** | Nufil | Monitoring | Simulate normal & drifted live traffic and labeled retraining batches from unseen UCI `adult.test` (`monitoring/simulate.py`, `scripts/simulate_traffic.py`). | **Done** (PR #40) |
+| **D2 — Retraining Loop** | Team | Pipeline / CI | Automated/triggered retraining workflow appending new labeled batch, re-evaluating through quality/eval gates, and promoting updated model. | Pending |
+| **D2 — Final Demo & Submission** | Team | Submission | End-to-end live drift & retraining demonstration, documentation polish, and Deliverable 2 submission. | Pending |
 
 ### Deliverable 1 (Completed)
 
@@ -239,8 +258,12 @@ Registered model: **TVAE**, `synthguard-generator` version 1, alias `champion`. 
 ```
 SynthGuard-Ops/
 ├── .dockerignore                     # Docker build exclusions
-├── Dockerfile                        # Multi-stage CPU container
+├── Dockerfile                        # Multi-stage CPU pipeline container
+├── Dockerfile.serve                  # Lightweight 512 MB FastAPI serving image
+├── docker-compose.yml                # One-command pipeline reproduction
+├── docker-compose.monitoring.yml     # Local API + Prometheus + Grafana stack
 ├── .dvc/                             # DVC internal configuration
+├── deploy/model/                     # Exported classifier artifact & metadata for serving
 ├── data/                             # Versioned data artifacts (DVC managed)
 │   ├── raw/                          # adult.data (download stage)
 │   ├── processed/                    # train.csv, holdout.csv, metadata.json (prepare stage)
@@ -252,15 +275,25 @@ SynthGuard-Ops/
 │   ├── baselines.json                # Marginal & Gaussian Copula timings (T08)
 │   ├── runs_baselines.json           # MLflow run IDs for baselines (T08)
 │   ├── primary.json                  # CTGAN & TVAE timings (T09)
-│   └── runs_primary.json             # MLflow run IDs for primary models (T09)
+│   ├── runs_primary.json             # MLflow run IDs for primary models (T09)
+│   ├── evaluation.json               # Candidate fidelity, utility & privacy scores
+│   ├── registered.json               # Champion generator metadata
+│   └── classifier.json               # Production classifier hold-out benchmark (D2-02)
 ├── models/                           # Serialized generator artifacts (DVC managed)
+├── monitoring/                       # Prometheus config, Grafana dashboards & request logs
 ├── notebooks/                        # Jupyter notebooks for data analysis
 │   └── 01_eda.ipynb                  # Exploratory Data Analysis (T04)
 ├── reports/                          # Generated evaluation and validation reports
 │   ├── eval/                         # Model comparison table & metrics (T23)
 │   ├── validation/                   # Pandera raw and processed schema check results
-│   ├── results.md                    # Deliverable 1 generator comparison summary (T23)
+│   ├── results.md                    # Generator comparison summary (T23)
 │   └── reproducibility.md            # Fresh-clone reproduction audit report (T22)
+├── scripts/                          # Operational & CI/CD helper scripts
+│   ├── check_drift.py                # Evidently drift check runner
+│   ├── eval_gate.py                  # Champion-challenger evaluation gate CLI
+│   ├── export_models.py              # Export champion classifier into deploy/model/
+│   ├── simulate_traffic.py           # Send live traffic or generate normal/drifted batches (D2-10)
+│   └── smoke_test_api.py             # API health, predict & metrics smoke test
 ├── src/synthguard/                   # Core Python package
 │   ├── config.py                     # Parameter loader & seed management
 │   ├── data/                         # Ingestion, schema, and processing modules
@@ -278,9 +311,16 @@ SynthGuard-Ops/
 │   │   ├── utility.py                # TRTR vs TSTR (RF & XGBoost)
 │   │   ├── privacy.py                # DCR, exact match, MIA AUC
 │   │   └── score.py                  # Composite selection score & tie-breaking
-│   ├── serving/                      # Downstream classifier trained on synthetic data (D2-02)
+│   ├── monitoring/                   # Live drift detection & traffic simulation
 │   │   ├── __init__.py
-│   │   └── classifier.py             # XGBoost pipeline + real hold-out evaluation
+│   │   ├── drift.py                  # Evidently feature & prediction drift analysis
+│   │   └── simulate.py               # Seeded normal & drifted batches from adult.test (D2-10)
+│   ├── serving/                      # Inference API, classifier, explainability & gating
+│   │   ├── __init__.py
+│   │   ├── app.py                    # FastAPI service + Prometheus instrumentation
+│   │   ├── classifier.py             # XGBoost pipeline + real hold-out evaluation (D2-02)
+│   │   ├── explain.py                # TreeSHAP feature attribution
+│   │   └── gate.py                   # Champion-challenger promotion gate
 │   ├── stages/                       # Thin CLI entry points invoked by DVC
 │   │   ├── download.py
 │   │   ├── validate.py
@@ -297,11 +337,15 @@ SynthGuard-Ops/
 │       └── registry.py
 ├── tests/                            # Test suite
 │   ├── conftest.py
+│   ├── test_app.py
 │   ├── test_classifier.py            # Synthetic-trained classifier & hold-out tests (D2-02)
 │   ├── test_config.py
+│   ├── test_drift.py
 │   ├── test_evaluate_stage.py
+│   ├── test_explain.py
 │   ├── test_export.py
 │   ├── test_fidelity.py
+│   ├── test_gate.py
 │   ├── test_generators.py
 │   ├── test_metric_known_answers.py
 │   ├── test_mlflow_utils.py
@@ -311,6 +355,7 @@ SynthGuard-Ops/
 │   ├── test_registry.py
 │   ├── test_runner.py                # Generator training runner & stage guards (T20)
 │   ├── test_score.py
+│   ├── test_simulate.py              # Normal/drifted traffic simulation & CLI tests (D2-10)
 │   ├── test_split.py
 │   ├── test_utility.py
 │   └── test_validation.py
