@@ -45,6 +45,7 @@ def client(model_dir, monkeypatch, tmp_path):
     monkeypatch.setenv("SYNTHGUARD_REQUEST_LOG", str(tmp_path / "requests.jsonl"))
     service.load_model.cache_clear()
     service._load_generator.cache_clear()
+    service.RECENT.clear()
     return TestClient(service.app)
 
 
@@ -133,3 +134,27 @@ def test_serving_import_does_not_load_torch_or_sdv():
 def test_error_counter_starts_at_zero(client):
     text = client.get("/metrics").text
     assert 'synthguard_errors_total{endpoint="/predict"} 0.0' in text
+
+
+def test_recent_requests_are_served_for_the_drift_job(client):
+    for age in (30, 40, 50):
+        client.post("/predict", json={**PERSON, "age": age})
+    body = client.get("/monitoring/requests?limit=2").json()
+    assert body["count"] == 2
+    assert [r["age"] for r in body["requests"]] == [40, 50]
+    assert {"prediction", "probability_gt_50k", "ts"} <= set(body["requests"][0])
+
+
+def test_drift_report_requires_the_token(client, monkeypatch):
+    status = {"share_of_drifted_columns": 0.5, "dataset_drift": True,
+              "prediction_drift_score": 0.2, "alert": True}  # fmt: skip
+    monkeypatch.delenv("SYNTHGUARD_DRIFT_TOKEN", raising=False)
+    assert client.post("/monitoring/drift", json=status).status_code == 403
+    monkeypatch.setenv("SYNTHGUARD_DRIFT_TOKEN", "s3")
+    bad = client.post("/monitoring/drift", json=status, headers={"X-Drift-Token": "nope"})
+    assert bad.status_code == 403
+    ok = client.post("/monitoring/drift", json=status, headers={"X-Drift-Token": "s3"})
+    assert ok.status_code == 200
+    text = client.get("/metrics").text
+    assert "synthguard_drift_share 0.5" in text and "synthguard_drift_alert 1.0" in text
+    assert "synthguard_prediction_drift_score 0.2" in text

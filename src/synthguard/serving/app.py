@@ -5,6 +5,8 @@ Environment:
   SYNTHGUARD_ENABLE_GENERATE  "1" to enable /generate (needs torch + SDV; off on Render)
   SYNTHGUARD_GENERATOR_PATH   pickled generator for /generate (default: models/<champion>.pkl)
   SYNTHGUARD_REQUEST_LOG      optional JSONL file, one line per prediction (for drift checks)
+  SYNTHGUARD_REQUEST_BUFFER   how many recent predictions /monitoring/requests keeps (default 5000)
+  SYNTHGUARD_DRIFT_TOKEN      token the drift job must send to POST /monitoring/drift (unset = off)
 """
 
 from __future__ import annotations
@@ -12,6 +14,7 @@ from __future__ import annotations
 import json
 import os
 import time
+from collections import deque
 from datetime import UTC, datetime
 from functools import lru_cache
 from pathlib import Path
@@ -19,7 +22,7 @@ from typing import Literal
 
 import joblib
 import pandas as pd
-from fastapi import FastAPI, HTTPException, Query, Request, Response
+from fastapi import FastAPI, Header, HTTPException, Query, Request, Response
 from prometheus_client import (
     CONTENT_TYPE_LATEST,
     CollectorRegistry,
@@ -113,6 +116,27 @@ PROBABILITY = Histogram("synthguard_prediction_probability", "Predicted P(income
                         buckets=[i / 10 for i in range(1, 11)], registry=REGISTRY)  # fmt: skip
 DRIFT_SHARE = Gauge("synthguard_drift_share", "Share of drifted input columns (latest check)",
                     registry=REGISTRY)  # fmt: skip
+DRIFT_ALERT = Gauge("synthguard_drift_alert", "1 if the latest drift check raised an alert",
+                    registry=REGISTRY)  # fmt: skip
+PREDICTION_DRIFT = Gauge(
+    "synthguard_prediction_drift_score",
+    "Drift score of predicted probabilities (latest check)",
+    registry=REGISTRY,
+)
+DRIFT_CHECKED = Gauge(
+    "synthguard_drift_last_check_timestamp",
+    "Unix time of the latest drift check",
+    registry=REGISTRY,
+)
+RECENT = deque(maxlen=int(os.environ.get("SYNTHGUARD_REQUEST_BUFFER", "5000")))
+
+
+class DriftStatus(BaseModel):
+    share_of_drifted_columns: float = Field(..., ge=0, le=1)
+    dataset_drift: bool
+    prediction_drift_score: float | None = None
+    alert: bool
+
 
 app = FastAPI(
     title="SynthGuard-Ops inference API",
@@ -183,12 +207,43 @@ def generate(n: int = Query(10, ge=1, le=1000)):
     return {"generator": meta.get("generator", {}), "rows": rows.to_dict(orient="records")}
 
 
+@app.get("/monitoring/requests")
+def recent_requests(limit: int = Query(1000, ge=1, le=5000)):
+    """Most recent predictions (inputs + output), newest last, for the drift job."""
+    items = list(RECENT)[-limit:]
+    return {"count": len(items), "requests": items}
+
+
+@app.post("/monitoring/drift")
+def report_drift(status: DriftStatus, x_drift_token: str | None = Header(default=None)):
+    """The drift job reports its latest result here; exported as Prometheus gauges."""
+    token = os.environ.get("SYNTHGUARD_DRIFT_TOKEN")
+    if not token or x_drift_token != token:
+        raise HTTPException(403, "drift reporting is not enabled or the token is wrong")
+    DRIFT_SHARE.set(status.share_of_drifted_columns)
+    DRIFT_ALERT.set(1 if status.alert else 0)
+    if status.prediction_drift_score is not None:
+        PREDICTION_DRIFT.set(status.prediction_drift_score)
+    DRIFT_CHECKED.set(time.time())
+    return {"ok": True}
+
+
 @app.get("/metrics")
 def metrics():
     return Response(generate_latest(REGISTRY), media_type=CONTENT_TYPE_LATEST)
 
 
-_ROUTES = {"/", "/health", "/predict", "/generate", "/metrics", "/docs", "/openapi.json"}
+_ROUTES = {
+    "/",
+    "/health",
+    "/predict",
+    "/generate",
+    "/metrics",
+    "/docs",
+    "/openapi.json",
+    "/monitoring/requests",
+    "/monitoring/drift",
+}
 for _route in ("/health", "/predict", "/generate", "/metrics"):
     ERRORS.labels(_route)  # export 0 from the start, so dashboards show 0% instead of "no data"
 
@@ -206,10 +261,11 @@ def _load_generator():
 
 
 def _log_request(features: dict, label: str, probability: float) -> None:
+    record = {"ts": datetime.now(UTC).isoformat(), **features,
+              "prediction": label, "probability_gt_50k": probability}  # fmt: skip
+    RECENT.append(record)
     path = os.environ.get("SYNTHGUARD_REQUEST_LOG")
     if not path:
         return
-    record = {"ts": datetime.now(UTC).isoformat(), **features,
-              "prediction": label, "probability_gt_50k": probability}  # fmt: skip
     with open(path, "a") as f:
         f.write(json.dumps(record) + "\n")
