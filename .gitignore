@@ -41,3 +41,6 @@ docs/walkthrough/
 
 # local monitoring request log
 monitoring/logs/*.jsonl
+
+# drift reports (uploaded as CI artifacts)
+reports/drift/
