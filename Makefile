@@ -8,7 +8,8 @@ ifeq ($(shell uname),Darwin)
 OMP_ENV := DYLD_LIBRARY_PATH=$(CURDIR)/$(VENV)/lib/python3.11/site-packages/torch/lib
 endif
 
-.PHONY: setup lint format test reproduce smoke ui lock export serve serve-docker
+.PHONY: setup lint format test reproduce smoke ui lock export serve serve-docker rollback \
+	rollback-registry
 
 setup:
 	python3.11 -m venv $(VENV)
@@ -53,3 +54,14 @@ serve:
 serve-docker:
 	docker build -f Dockerfile.serve -t synthguard-serve .
 	docker run --rm --memory=512m -e PORT=8000 -p 8000:8000 synthguard-serve
+
+# Roll back the served model to the one before the last promotion (TO=<git ref> to pick one).
+# Restores deploy/model + metrics/classifier.json; commit on a rollback/* branch and merge the PR:
+# deploy.yml re-runs the gate and redeploys. In GitHub: Actions -> Rollback -> Run workflow.
+rollback:
+	$(PY) scripts/rollback.py $(if $(TO),--to $(TO))
+
+# Same in the local MLflow registry: champion -> previous; then re-export deploy/model.
+rollback-registry:
+	$(OMP_ENV) $(PY) scripts/rollback.py --registry
+	$(OMP_ENV) $(PY) scripts/export_models.py
