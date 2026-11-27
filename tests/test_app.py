@@ -48,11 +48,13 @@ def client(model_dir, monkeypatch, tmp_path):
     return TestClient(service.app)
 
 
-def test_health(client):
+def test_health(client, monkeypatch):
+    monkeypatch.delenv("GIT_COMMIT", raising=False)
+    monkeypatch.setenv("RENDER_GIT_COMMIT", "abc123")
     r = client.get("/health")
     assert r.status_code == 200
     assert r.json() == {"status": "ok", "model_version": "7", "trained_on": "synthetic:tvae",
-                        "generate_enabled": False}  # fmt: skip
+                        "generate_enabled": False, "commit": "abc123"}  # fmt: skip
 
 
 def test_predict_returns_label_probability_and_shap(client, model_dir):
