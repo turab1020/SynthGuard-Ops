@@ -9,7 +9,7 @@ description = "Quality-gated synthetic tabular data pipeline (MLOps course proje
 requires-python = ">=3.11,<3.12"
 dependencies = [
   "pandas", "numpy", "scikit-learn", "xgboost", "sdv", "sdmetrics", "torch",
-  "mlflow", "dvc", "pandera", "pyyaml", "requests", "psutil",
+  "mlflow", "dvc", "pandera", "pyyaml", "requests", "psutil", "evidently",
 ]
 
 [project.optional-dependencies]
