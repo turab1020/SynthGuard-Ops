@@ -77,6 +77,23 @@ curl -s -X POST https://synthguard-ops.onrender.com/predict -H 'Content-Type: ap
 
 ---
 
+## 📈 Observability (local demo stack)
+
+```bash
+docker compose -f docker-compose.monitoring.yml up --build
+```
+
+| Service | URL | What it shows |
+|---|---|---|
+| API (same image as Render) | http://localhost:8000/docs | live predictions; requests logged to `monitoring/logs/requests.jsonl` for drift checks |
+| Prometheus | http://localhost:9090 | scrapes the local API **and the live Render service** (`/metrics`) |
+| Grafana | http://localhost:3000 | dashboard "SynthGuard serving": request rate, p50/p95/p99 latency, 5xx error rate, predictions by label, prediction drift, input drift share |
+
+Metrics exported by the API: `synthguard_requests_total`, `synthguard_request_latency_seconds`,
+`synthguard_errors_total`, `synthguard_predictions_total`, `synthguard_prediction_probability`, `synthguard_drift_share`.
+
+---
+
 ## 🎯 Deliverable 1: Requirements and Results
 
 ### How each requirement is met

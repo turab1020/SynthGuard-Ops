@@ -38,3 +38,6 @@ docs/PROPOSAL.md
 docs/DELIVERABLE_1.md
 docs/decisions.md
 docs/walkthrough/
+
+# local monitoring request log
+monitoring/logs/*.jsonl

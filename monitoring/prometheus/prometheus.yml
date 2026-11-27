@@ -1,0 +1,21 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  # the API running locally in this compose stack
+  - job_name: synthguard-local
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["api:8000"]
+        labels: {env: local}
+
+  # the live Render service (free instance: it sleeps when idle, so gaps are expected)
+  - job_name: synthguard-render
+    scheme: https
+    metrics_path: /metrics
+    scrape_interval: 30s
+    scrape_timeout: 25s
+    static_configs:
+      - targets: ["synthguard-ops.onrender.com"]
+        labels: {env: render}
