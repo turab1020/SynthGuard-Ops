@@ -29,6 +29,10 @@ classifier: {n_estimators: 300, max_depth: 6, learning_rate: 0.1}
 # evaluation gate (D2): a candidate classifier is blocked if its hold-out ROC-AUC drops more
 # than this below the production benchmark (metrics/classifier.json)
 gate: {max_drop: 0.01}
+# drift monitoring (D2): Evidently on recent API requests vs a sample of the real train split.
+# Alert when this share of the 14 input columns drifts, or the predicted probability drifts.
+# Measured: normal traffic 1-2 of 14 columns drift by chance (0.07-0.14); shifted 4-5 (0.29-0.36).
+drift: {threshold: 0.25, reference_rows: 5000, window: 1000, min_requests: 100}
 smoke:
   rows: 1000
   epochs: 1
