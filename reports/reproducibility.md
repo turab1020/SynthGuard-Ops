@@ -1,34 +1,40 @@
-# Reproducibility check (Deliverable 1)
+# Reproducibility check
 
 **Result: PASS.** A fresh clone running `docker compose run --rm pipeline` registered the same model (TVAE) and reproduced all four committed selection scores to 6 decimals.
 
 ## Fresh-clone check
 
-GitHub Actions run `45016077578`, commit `b77df6c`, clean checkout, x86_64 Linux, 13 min 0 s. Tolerance: ±0.02 on selection scores.
+Reference: GitHub Actions run `45848855837` (Docker fresh clone, x86_64 Linux), committed in `metrics/`.
+Independent check: run `45850821198`, a separate clean checkout of the same commit. Tolerance: ±0.02.
 
 | Generator | Committed score | Fresh-clone score | Difference | Privacy gate |
 |---|---|---|---|---|
-| TVAE (registered) | 0.908011 | 0.908011 | 0.000000 | passed |
-| CTGAN | 0.900101 | 0.900101 | 0.000000 | passed |
-| Gaussian Copula | 0.882685 | 0.882685 | 0.000000 | passed |
-| Independent marginal | 0.684147 | 0.684147 | 0.000000 | passed |
+| TVAE (registered) | 0.905794 | 0.905794 | 0.000000 | passed |
+| CTGAN | 0.898364 | 0.898364 | 0.000000 | passed |
+| Gaussian Copula (baseline) | 0.882685 | 0.882685 | 0.000000 | passed |
+| Independent marginal (baseline) | 0.684147 | 0.684147 | 0.000000 | passed |
 
 Run IDs, timestamps and fit times change on every run and are not compared.
 
 ## Across CPU types
 
-Repeated runs on one CPU type are identical. Different CPU types use different low-level numeric routines, so scores are **not bit-identical across CPU models**. They stayed within the ±0.02 tolerance:
+Repeated runs on one CPU type are identical. Different CPU types use different low-level numeric routines, so scores are **not bit-identical across CPU models**; they stay within the ±0.02 tolerance and TVAE is selected in every case.
 
-| Environment | CTGAN | TVAE | Largest difference from committed |
+Committed reference (TVAE / CTGAN): TVAE **0.905794**, CTGAN **0.898364**. An independent fresh-clone run reproduced all four selection scores of this reference to 6 decimals.
+
+| Environment | CTGAN score (Δ vs reference) | TVAE score (Δ vs reference) | Selected by the tie rule |
 |---|---|---|---|
-| AMD EPYC 9V45 / 9V74 | 0.897160 | 0.905247 | 0.0029 |
-| Intel Xeon Platinum 8573C | 0.900956 | 0.905794 | 0.0022 |
-| macOS arm64 (native) | 0.905879 | 0.904732 | 0.0058 |
-| Intel Xeon 8573C, AVX2 forced (diagnostic) | 0.903353 | 0.895534 | 0.0125 |
+| **Reference** (Docker fresh clone, x86_64 Linux; reproduced exactly by an independent run) | 0.898364 | 0.905794 | TVAE |
+| Docker fresh clone, two other runners | 0.893697 (−0.0047) | 0.905247 (−0.0005) | TVAE |
+| D1 reference run (AMD EPYC 7763) | 0.900101 (+0.0017) | 0.908011 (+0.0022) | TVAE |
+| AMD EPYC 9V45 / 9V74 ¹ | 0.897160 (−0.0012) | 0.905247 (−0.0005) | TVAE |
+| Intel Xeon Platinum 8573C ¹ | 0.900956 (+0.0026) | 0.905794 (−0.0000) | TVAE |
+| macOS arm64 (native, no Docker) | 0.905879 (+0.0075) | 0.904732 (−0.0011) | TVAE |
+| Intel Xeon 8573C, AVX2 forced (diagnostic) ¹ | 0.903353 (+0.0050) | 0.895534 (−0.0103) | TVAE |
 
-CTGAN and TVAE are closer than this variation, so `selection.tie_tolerance: 0.02` treats them as tied and selects the faster to train. That gives TVAE in every environment above.
+¹ Retrains and scores CTGAN and TVAE only (the rule applied to those two scores); the other rows are full pipeline runs.
 
-## Limits
-
-- The rows in the second table retrain and score CTGAN and TVAE only; the macOS row also comes from a full pipeline run.
-- Gaussian Copula is 0.0253 below the committed top score. If a machine's top score fell below about 0.9027, Gaussian Copula would join the tie and win as the fastest. The closest case measured was 0.9029.
+- Largest difference from the reference: **0.0103**, inside the ±0.02 tolerance.
+- Largest native Mac vs Linux gap: **0.0087** (CTGAN, 0.905879 on macOS arm64 vs 0.897160 on AMD EPYC).
+- CTGAN and TVAE are closer than this CPU-to-CPU variation, so `selection.tie_tolerance: 0.02` in `params.yaml` treats them as tied and picks the faster to train (TVAE, 4–5× faster on every CPU measured).
+- Known limit: Gaussian Copula (0.8827) is 0.0231 below the reference top score. If a machine's top score fell below about 0.9027, it would join the tie and win as the fastest. The closest case measured was 0.9034 (0.0207 above it).
