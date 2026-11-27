@@ -150,9 +150,10 @@ def health():
         _, meta = load_model()
     except Exception as exc:  # model missing or unreadable
         raise HTTPException(503, f"model not loaded: {exc}") from exc
+    commit = os.environ.get("RENDER_GIT_COMMIT") or os.environ.get("GIT_COMMIT")
     return {"status": "ok", "model_version": str(meta.get("classifier", {}).get("version", "?")),
             "trained_on": meta.get("classifier", {}).get("trained_on"),
-            "generate_enabled": generate_enabled()}  # fmt: skip
+            "generate_enabled": generate_enabled(), "commit": commit}  # fmt: skip
 
 
 @app.post("/predict", response_model=Prediction)

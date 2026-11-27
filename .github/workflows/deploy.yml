@@ -54,10 +54,14 @@ jobs:
           docker rm -f serve
 
   deploy:
-    name: Trigger Render deploy
+    name: Trigger Render deploy and verify the live service
     needs: gate
     runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      SERVICE_URL: ${{ vars.RENDER_SERVICE_URL || 'https://synthguard-ops.onrender.com' }}
     steps:
+      - uses: actions/checkout@v4
       - name: Call the Render deploy hook
         env:
           RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
@@ -67,3 +71,21 @@ jobs:
             exit 0
           fi
           curl -fsS -X POST "$RENDER_DEPLOY_HOOK" -o /dev/null -w "deploy hook HTTP %{http_code}\n"
+      - name: Wait until the live service runs this commit
+        env:
+          RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
+        run: |
+          [ -z "$RENDER_DEPLOY_HOOK" ] && exit 0
+          for i in $(seq 1 60); do
+            live=$(curl -fsS --max-time 60 "$SERVICE_URL/health" | python3 -c "import sys,json; print(json.load(sys.stdin).get('commit') or '')" || true)
+            if [ "$live" = "$GITHUB_SHA" ]; then echo "live service runs $GITHUB_SHA"; exit 0; fi
+            if [ -z "$live" ] && [ "$i" -gt 1 ]; then echo "::notice::/health reports no commit"; fi
+            sleep 20
+          done
+          echo "::error::live service did not switch to $GITHUB_SHA within 20 minutes"; exit 1
+      - name: Smoke-test the live service
+        env:
+          RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
+        run: |
+          [ -z "$RENDER_DEPLOY_HOOK" ] && exit 0
+          python3 scripts/smoke_test_api.py --url "$SERVICE_URL" --wait 180

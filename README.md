@@ -48,6 +48,35 @@ flowchart LR
 
 ---
 
+## 🌐 Live deployment (Deliverable 2)
+
+**Live API:** https://synthguard-ops.onrender.com · interactive docs: https://synthguard-ops.onrender.com/docs
+
+| Endpoint | What it does |
+|---|---|
+| `GET /health` | Service status, model version, deployed commit |
+| `POST /predict` | Income prediction (`>50K` / `<=50K`), probability, confidence and TreeSHAP explanation (top features) |
+| `GET /metrics` | Prometheus metrics: requests, latency, errors, predictions, drift |
+| `GET /generate?n=` | Synthetic rows from the champion generator; **off on Render** (needs torch/SDV), on locally with `make serve` |
+
+```bash
+curl -s https://synthguard-ops.onrender.com/health
+curl -s -X POST https://synthguard-ops.onrender.com/predict -H 'Content-Type: application/json' -d '{
+  "age": 45, "workclass": "Private", "fnlwgt": 190000, "education": "Masters", "education_num": 14,
+  "marital_status": "Married-civ-spouse", "occupation": "Exec-managerial", "relationship": "Husband",
+  "race": "White", "sex": "Male", "capital_gain": 0, "capital_loss": 0, "hours_per_week": 50,
+  "native_country": "United-States"}'
+```
+
+- **Hosting:** Render free Docker web service (Oregon), built from `Dockerfile.serve` (no torch/SDV, fits 512 MB).
+  The free instance sleeps when idle: the first request after a sleep takes about a minute.
+  Warm it up with `python scripts/smoke_test_api.py --url https://synthguard-ops.onrender.com`.
+- **Deploys only through the gate:** on every merge to `main`, `deploy.yml` runs lint, tests, data validation,
+  the evaluation gate and a 512 MB image smoke test; only then it calls Render's deploy hook, waits until the
+  live `/health` reports the new commit, and smoke-tests the live URL. Render auto-deploy is off.
+
+---
+
 ## 🎯 Deliverable 1: Requirements and Results
 
 ### How each requirement is met
