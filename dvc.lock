@@ -373,8 +373,8 @@ stages:
       size: 710456
     - path: src/synthguard/stages/register.py
       hash: md5
-      md5: 1b50e37e5c5ad869eb30b1cfef8cf17e
-      size: 2747
+      md5: df80bb9005cfa3c706aa5adadfd4e412
+      size: 2918
     - path: src/synthguard/tracking/pyfunc_model.py
       hash: md5
       md5: 1ccec09f82290df2a6a46cd0215d628b
@@ -431,8 +431,8 @@ stages:
       size: 1837
     - path: src/synthguard/stages/train_classifier.py
       hash: md5
-      md5: acb8f0b9cef39dc19732c92dd45264c8
-      size: 3023
+      md5: ce82c78143f9e0de994882f7857a70f3
+      size: 3531
     params:
       params.yaml:
         classifier:

@@ -14,11 +14,18 @@ import yaml
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 PARAMS_PATH = PROJECT_ROOT / "params.yaml"
 SMOKE_ENV = "SYNTHGUARD_SMOKE"
+ALIAS_ENV = "SYNTHGUARD_REGISTER_ALIAS"
 
 
 def is_smoke() -> bool:
     """True when SYNTHGUARD_SMOKE is set to a truthy value."""
     return os.environ.get(SMOKE_ENV, "").strip().lower() in {"1", "true", "yes"}
+
+
+def register_alias() -> str:
+    """Registry alias the register/train_classifier stages assign: `champion` (default), or e.g.
+    `challenger` in a retraining run, so a retrained model never replaces the champion directly."""
+    return os.environ.get(ALIAS_ENV, "").strip() or "champion"
 
 
 def load_params(path: str | Path = PARAMS_PATH, smoke: bool | None = None) -> dict[str, Any]:
