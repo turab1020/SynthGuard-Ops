@@ -1,0 +1,149 @@
+name: Retrain
+
+# Closed loop: a drift alert (repository_dispatch "drift-alert", sent by drift-check.yml) or a manual
+# run retrains on train + a new labelled batch and registers a CHALLENGER (never the champion).
+# compare_promote.py then scores champion vs challenger on the fixed hold-out and promotes or keeps.
+# On a promotion the new champion is exported to deploy/model and pushed to a promote/* branch;
+# merging its PR deploys through deploy.yml (tests + eval gate, then the Render deploy hook).
+on:
+  repository_dispatch:
+    types: [drift-alert]
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: New batch = simulated traffic of this kind (from UCI adult.test, labelled)
+        type: choice
+        options: [drifted, normal]
+        default: drifted
+      rows:
+        description: Rows in the new batch
+        default: "2000"
+      tolerance:
+        description: Allowed ROC-AUC drop vs the champion (empty = gate.max_drop in params.yaml)
+        default: ""
+      smoke:
+        description: Smoke run (1,000 rows, 1 epoch) to test the workflow quickly
+        type: boolean
+        default: false
+
+permissions:
+  contents: write  # push the promote/* branch
+
+concurrency:
+  group: retrain
+  cancel-in-progress: false
+
+jobs:
+  retrain:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      MLFLOW_DISABLE_AGENT_HINT: "1"
+      # Fresh registry for this run; the deployed model is seeded into it as the champion.
+      MLFLOW_TRACKING_URI: sqlite:///${{ github.workspace }}/retrain-registry.db
+      MODE: ${{ inputs.mode || 'drifted' }}
+      ROWS: ${{ inputs.rows || '2000' }}
+      TOLERANCE: ${{ inputs.tolerance }}
+      SYNTHGUARD_SMOKE: ${{ inputs.smoke && '1' || '' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: requirements.lock
+      - name: Install (CPU torch + pinned lock file)
+        run: |
+          python -m venv .venv
+          .venv/bin/pip install --upgrade pip
+          .venv/bin/pip install "$(grep -E '^torch==' requirements.lock)" \
+            --index-url https://download.pytorch.org/whl/cpu
+          grep -vE '^torch==' requirements.lock > /tmp/req.txt
+          .venv/bin/pip install -r /tmp/req.txt
+          .venv/bin/pip install --no-deps -e .
+
+      - name: Trigger
+        env:
+          EVENT: ${{ github.event_name }}
+          DRIFT_SHARE: ${{ toJSON(github.event.client_payload.drift.share_of_drifted_columns) }}
+        run: |
+          {
+            echo "## Retraining run"
+            echo "- trigger: \`$EVENT\`, new batch: $ROWS $MODE rows, smoke: ${SYNTHGUARD_SMOKE:-no}"
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ "$EVENT" = "repository_dispatch" ]; then
+            echo "- drift alert: share of drifted columns \`$DRIFT_SHARE\`" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Data (download -> pandera validate -> prepare; the hold-out is fixed)
+        run: PATH="$PWD/.venv/bin:$PATH" .venv/bin/dvc repro prepare
+
+      - name: Registry - the deployed model (deploy/model) is the champion
+        run: .venv/bin/python scripts/compare_promote.py --seed-champion deploy/model --seed-only
+
+      - name: New labelled batch (seeded, from UCI adult.test - never in train or hold-out)
+        run: |
+          .venv/bin/python scripts/simulate_traffic.py batch --mode "$MODE" --n "$ROWS" \
+            --seed "${{ github.run_number }}" --csv data/new_batch.csv
+
+      - name: Validate the batch (pandera) and append it to train
+        run: .venv/bin/python scripts/append_batch.py --batch data/new_batch.csv
+
+      - name: Retrain generators -> evaluate -> register challenger -> challenger classifier
+        env:
+          SYNTHGUARD_REGISTER_ALIAS: challenger
+        run: |
+          for stage in baselines generate evaluate register train_classifier; do
+            echo "::group::$stage"
+            .venv/bin/python -m "synthguard.stages.$stage"
+            echo "::endgroup::"
+          done
+
+      - name: Champion vs challenger (fixed hold-out) -> promote or keep
+        id: compare
+        run: |
+          set +e
+          .venv/bin/python scripts/compare_promote.py ${TOLERANCE:+--tolerance "$TOLERANCE"}
+          code=$?
+          set -e
+          echo "exit=$code" >> "$GITHUB_OUTPUT"
+          cat reports/promotion.md >> "$GITHUB_STEP_SUMMARY"
+          [ "$code" = 0 ] || [ "$code" = 3 ]  # 3 = champion kept: a valid outcome, not a failure
+
+      - name: Export the new champion to deploy/model
+        if: steps.compare.outputs.exit == '0'
+        run: .venv/bin/python scripts/export_models.py
+
+      - name: Push the promotion branch (its PR deploys through the gate)
+        if: steps.compare.outputs.exit == '0' && inputs.smoke != true
+        run: |
+          branch="promote/run-${{ github.run_id }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$branch"
+          git add deploy/model metrics/classifier.json reports/promotion.md
+          git commit -m "chore(model): promote the challenger classifier (retrain run ${{ github.run_number }})"
+          git push origin "$branch"
+          url="${{ github.server_url }}/${{ github.repository }}/compare/main...$branch?expand=1"
+          {
+            echo
+            echo "### Next: open the promotion PR"
+            echo "[Open PR for \`$branch\`]($url). The PR gate checks it against the production benchmark;"
+            echo "merging it deploys the new champion (deploy.yml: tests + eval gate -> Render)."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload the run's evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: retrain-${{ github.run_number }}
+          path: |
+            reports/promotion.md
+            reports/promotion.json
+            reports/validation/new_batch.json
+            metrics/classifier_challenger.json
+            metrics/evaluation.json
+            metrics/registered.json
+            deploy/model/meta.json
+            retrain-registry.db
+          if-no-files-found: ignore

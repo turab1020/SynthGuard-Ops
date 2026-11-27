@@ -1,5 +1,7 @@
 """DVC stage: register the generator chosen by `evaluate` as `synthguard-generator@champion`.
 
+In a retraining run (SYNTHGUARD_REGISTER_ALIAS=challenger) the alias is `challenger` instead.
+
 The decision (privacy gate, then highest selection score) is made once in the evaluate stage
 and recorded in metrics/evaluation.json; this stage carries it out and records the result.
 """
@@ -9,9 +11,9 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from synthguard.config import PROJECT_ROOT
+from synthguard.config import PROJECT_ROOT, register_alias
 from synthguard.tracking.mlflow_utils import common_tags
-from synthguard.tracking.registry import ALIAS, MODEL_NAME, register_generator
+from synthguard.tracking.registry import MODEL_NAME, register_generator
 
 METRICS_DIR = PROJECT_ROOT / "metrics"
 MODELS_DIR = PROJECT_ROOT / "models"
@@ -48,14 +50,15 @@ def main(metrics_dir: Path = METRICS_DIR, models_dir: Path = MODELS_DIR) -> dict
     for f in ("runs_baselines.json", "runs_primary.json"):
         run_ids.update(json.loads((metrics_dir / f).read_text()))
     plan = plan_registration(evaluation, run_ids, common_tags())
+    alias = register_alias()
     version = register_generator(
-        models_dir / f"{plan['generator']}.pkl", plan["run_id"], plan["version_tags"]
+        models_dir / f"{plan['generator']}.pkl", plan["run_id"], plan["version_tags"], alias=alias
     )
     registered = {
         "model_name": MODEL_NAME,
-        "alias": ALIAS,
+        "alias": alias,
         "version": version,
-        "model_uri": f"models:/{MODEL_NAME}@{ALIAS}",
+        "model_uri": f"models:/{MODEL_NAME}@{alias}",
         "generator": plan["generator"],
         "privacy_gate": plan["version_tags"]["privacy_gate"],
         "run_id": plan["run_id"],
@@ -63,7 +66,8 @@ def main(metrics_dir: Path = METRICS_DIR, models_dir: Path = MODELS_DIR) -> dict
     }
     (metrics_dir / "registered.json").write_text(json.dumps(registered, indent=2))
     gate = registered["privacy_gate"]
-    print(f"registered {MODEL_NAME} v{version} = {plan['generator']} (privacy gate {gate})")
+    name = plan["generator"]
+    print(f"registered {MODEL_NAME} v{version} @{alias} = {name} (privacy gate {gate})")
     return registered
 
 
