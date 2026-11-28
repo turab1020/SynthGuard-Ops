@@ -1,11 +1,14 @@
 {
   "model_name": "synthguard-classifier",
   "alias": "champion",
-  "version": "2",
+  "version": "1",
+  "run_id": "25af028e49f7434ea35ecb6d91432ff0",
   "trained_on": "synthetic:tvae",
-  "roc_auc": 0.8782686168259477,
-  "f1": 0.6073159982371089,
-  "accuracy": 0.8174554394591272,
-  "precision": 0.6303751143641354,
-  "recall": 0.5858843537414966
+  "roc_auc": 0.8843925576303395,
+  "f1": 0.6222323670394887,
+  "accuracy": 0.8304650686334768,
+  "precision": 0.6717594874322326,
+  "recall": 0.5795068027210885,
+  "holdout_rows": 9762,
+  "positive_rate": 0.24093423478795328
 }
