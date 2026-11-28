@@ -5,13 +5,16 @@ Run:  streamlit run ui/app.py        (SYNTHGUARD_API_URL, default: the Render AP
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import altair as alt
 import pandas as pd
 import requests
 import streamlit as st
 from client import Api, api_url, contribution_rows, field_specs
 
-st.set_page_config(page_title="SynthGuard-Ops", page_icon="🛡️", layout="wide")
+FAVICON = Path(__file__).with_name("favicon.svg")
+st.set_page_config(page_title="SynthGuard-Ops", page_icon=str(FAVICON), layout="wide")
 COLORS = alt.Scale(domain=["towards >50K", "towards <=50K"], range=["#2e7d32", "#c62828"])
 
 
