@@ -1,26 +1,26 @@
 {
   "classifier": {
     "name": "synthguard-classifier",
-    "version": "2",
-    "run_id": "129b6cbdd2ce41de9c4ae2e4956aac5c",
+    "version": "1",
+    "run_id": "25af028e49f7434ea35ecb6d91432ff0",
     "trained_on": "synthetic:tvae",
     "holdout": {
-      "roc_auc": 0.8782686168259477,
-      "f1": 0.6073159982371089,
-      "accuracy": 0.8174554394591272,
-      "precision": 0.6303751143641354,
-      "recall": 0.5858843537414966
+      "roc_auc": 0.8843925576303395,
+      "f1": 0.6222323670394887,
+      "accuracy": 0.8304650686334768,
+      "precision": 0.6717594874322326,
+      "recall": 0.5795068027210885
     }
   },
   "generator": {
     "name": "tvae",
     "version": "1",
-    "selection_score": 0.8965875176406582,
-    "quality_score": 0.8401239999026959,
-    "utility_ratio": 0.9530510353786206,
-    "mia_auc": 0.49739325,
+    "selection_score": 0.9057944629284957,
+    "quality_score": 0.8434186831192128,
+    "utility_ratio": 0.9681702427377787,
+    "mia_auc": 0.49141875,
     "exact_match_rate": 0.0,
-    "dcr_ratio": 0.6923033735375176,
+    "dcr_ratio": 0.6296823495297835,
     "privacy_gate": "passed"
   },
   "libraries": {
@@ -29,5 +29,5 @@
     "xgboost": "3.2.0",
     "pandas": "2.3.3"
   },
-  "git_commit": "2c1c0b579c9c4bf2c608f589f5284dc1a3e40ab6"
+  "git_commit": "2ea72187331c1388ef6a184c124df6a98ba34465"
 }
