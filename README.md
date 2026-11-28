@@ -2,7 +2,7 @@
 
 > **Quality-Gated Synthetic Tabular Data Pipeline**  
 > MLOps Course Project — FAST National University (BSCS 2023)  
-> Status: **Deliverable 1** (Completed) | **Deliverable 2** (In Progress)
+> Status: **Deliverable 1** (Completed) | **Deliverable 2** (Completed: live API + UI, gated CI/CD, monitoring, closed-loop retraining and rollback)
 
 ---
 
@@ -19,13 +19,13 @@ SynthGuard-Ops enforces strict quality and privacy gates, tracks every candidate
 
 ---
 
-## 👥 Team & Ownership
+## 👥 Team contributions
 
-| Team Member | Role | Workstream & Ownership |
-|---|---|---|
-| **Turab Haider** | MLOps & Platform Lead | Project scaffolding, DVC pipeline configuration, MLflow tracking & Model Registry, Dockerization, CI/CD, Deliverable 1 submission. |
-| **Muhammad Nufil Anwer** | Data & Generation Lead | Data ingestion & integrity checks, Pandera schema validation, leakage-free data splits, synthetic generators (Marginal, Gaussian Copula, CTGAN, TVAE), downstream income classifier (`train_classifier`), traffic simulation (`monitoring/simulate.py`), Streamlit UI (`ui/`), drift-triggered retraining (`retrain.yml`, `append_batch.py`). |
-| **Muhammad Faizan** | Evaluation & Metrics Lead | Metrics formalization, fidelity scoring (SDMetrics), downstream utility evaluation (TSTR/TRTR), privacy risk assessment (MIA, DCR), quality gating. |
+| Team member | Role | Deliverable 1 | Deliverable 2 |
+|---|---|---|---|
+| **Turab Haider** | MLOps & Platform | Project scaffolding, DVC pipeline, MLflow tracking + Model Registry, Docker one-command reproduction, CI, submission | FastAPI service + `Dockerfile.serve`, Render hosting (API + UI), gated deploy (`deploy.yml`), PR eval gate (`pr-gate.yml`), Prometheus + Grafana stack, model export + rollback (`rollback.py`, `rollback.yml`), README |
+| **Muhammad Faizan** | Evaluation & Selection | Metrics specification, fidelity (SDMetrics), utility (TSTR/TRTR), privacy (MIA, DCR, exact match), selection score + privacy gate, results report | TreeSHAP explanations (`explain.py`), evaluation gate (`gate.py`, `eval_gate.py`), Evidently drift detection (`drift.py`, `check_drift.py`, `drift-check.yml`), champion-vs-challenger promotion (`promotion.py`, `compare_promote.py`) |
+| **Muhammad Nufil Anwer** | Data & Generation | Data download + integrity checks, pandera validation, leakage-free split, generators (Marginal, Gaussian Copula, CTGAN, TVAE), fresh-clone reproduction audit | Income classifier on synthetic data (`train_classifier`), Streamlit UI (`ui/`), traffic simulator (`simulate.py`, `simulate_traffic.py`), drift-triggered retraining workflow (`retrain.yml`, `append_batch.py`) |
 
 ---
 
@@ -116,6 +116,66 @@ Metrics exported by the API: `synthguard_requests_total`, `synthguard_request_la
 python scripts/simulate_traffic.py send --url http://localhost:8000 --mode normal --n 400
 python scripts/simulate_traffic.py send --url http://localhost:8000 --mode drifted --n 400
 ```
+
+---
+
+## 🎯 Deliverable 2: Requirements and Evidence
+
+### Architecture
+
+```mermaid
+flowchart LR
+    U["User"] --> UI["Streamlit UI<br/>(Render)"]
+    UI -- HTTP --> API["FastAPI /predict + TreeSHAP<br/>/health /metrics (Render)"]
+    API -- loads --> M["deploy/model<br/>(exported @champion classifier)"]
+    API -- /metrics --> P["Prometheus + Grafana<br/>(local docker compose)"]
+    API -- recent requests --> D["drift-check.yml<br/>(Evidently vs real train sample)"]
+    D -- "alert: repository_dispatch drift-alert" --> RT["retrain.yml<br/>new batch -> generators -> challenger"]
+    RT -- "champion vs challenger<br/>(fixed hold-out)" --> C{"promote?"}
+    C -- "yes: promote/* branch" --> PR["PR + pr-gate.yml<br/>(eval gate vs main's benchmark)"]
+    C -- no --> K["keep champion"]
+    PR -- merge --> DEP["deploy.yml<br/>tests + data validation + eval gate"]
+    DEP -- "deploy hook" --> API
+    RB["rollback.yml<br/>(restore previous model)"] --> PR
+```
+
+The classifier users query is trained **only on synthetic data** from the registered generator
+(`synthguard-generator@champion`, TVAE) and scored on the fixed real hold-out. Render has no MLflow
+server, so the `@champion` classifier is exported to `deploy/model/` and changed only through a PR.
+
+### How each requirement is met
+
+| Requirement | How it is met | Where to check |
+|---|---|---|
+| **Serving API & UI with explanations** | Containerized FastAPI service (`Dockerfile.serve`, 512 MB, no torch/SDV) on Render. `/predict` validates the 14 inputs against the pandera-derived schema (422 on bad input) and returns label, probability, confidence and exact TreeSHAP contributions. The Streamlit UI builds its form from the API's `/openapi.json` and draws the SHAP bar chart. | [`app.py`](src/synthguard/serving/app.py), [`explain.py`](src/synthguard/serving/explain.py), [`ui/app.py`](ui/app.py), live URLs above |
+| **Eval-gated CI/CD** | Every PR: lint + unit tests (`ci.yml`), pandera data validation and the evaluation gate (`pr-gate.yml`) on the fixed hold-out. The benchmark is always `main`'s `metrics/classifier.json`, so a PR cannot lower its own bar. A ROC-AUC drop of more than `gate.max_drop` (0.01) or a failed privacy gate marks the PR **BLOCKED**. On merge, `deploy.yml` re-runs tests, data validation and the gate before calling Render's deploy hook, so a worse model never reaches the live URL. | [`pr-gate.yml`](.github/workflows/pr-gate.yml), [`deploy.yml`](.github/workflows/deploy.yml), [`gate.py`](src/synthguard/serving/gate.py), [`eval_gate.py`](scripts/eval_gate.py) |
+| **Live observability** | `/metrics` exports request count, latency histogram, 5xx errors, predictions by label, predicted-probability histogram and drift gauges. Prometheus scrapes the live Render service and a local API; Grafana dashboard "SynthGuard serving" shows latency percentiles, error rate and drift. Evidently compares the most recent 1,000 live requests with a real-train sample (input drift + prediction drift) and alerts when ≥ 25% of the 14 columns drift or the predicted probabilities drift. | [`monitoring/`](monitoring/), [`docker-compose.monitoring.yml`](docker-compose.monitoring.yml), [`drift.py`](src/synthguard/monitoring/drift.py), [`drift-check.yml`](.github/workflows/drift-check.yml) |
+| **Closed-loop retraining & rollback** | A drift alert sends `repository_dispatch drift-alert`, which starts `retrain.yml`: append a validated, labelled new batch (UCI `adult.test`, never seen in training) → retrain generators → evaluate + privacy gate → register a **challenger** → train the challenger classifier → compare with the champion on the fixed hold-out. Promote if challenger ROC-AUC ≥ champion − 0.01 and privacy passes (old champion kept as `previous`); otherwise keep the champion. A promotion is pushed as a `promote/*` branch whose PR deploys through the gate. `rollback.yml` / `make rollback` restores the previously served model the same way. | [`retrain.yml`](.github/workflows/retrain.yml), [`compare_promote.py`](scripts/compare_promote.py), [`promotion.py`](src/synthguard/tracking/promotion.py), [`rollback.py`](scripts/rollback.py), [`promotion.md`](reports/promotion.md) |
+
+### Evidence (real runs, 28 Nov 2026)
+
+| Step | Run / PR | Result |
+|---|---|---|
+| Worse model blocked by the PR gate | [PR #35](https://github.com/turab1020/SynthGuard-Ops/pull/35) · [gate run](https://github.com/turab1020/SynthGuard-Ops/actions/runs/45941315580) | deliberately degraded model, gate **BLOCKED** (kept open as evidence) |
+| Normal live traffic (1,000 requests) → drift check | [run 46129329057](https://github.com/turab1020/SynthGuard-Ops/actions/runs/46129329057) | 0 of 14 columns drifted, no alert |
+| Drifted live traffic (1,000 requests) → drift check | [run 46129952748](https://github.com/turab1020/SynthGuard-Ops/actions/runs/46129952748) | 4 of 14 columns drifted (0.286 ≥ 0.25): **ALERT**, retraining dispatched |
+| Retraining started by the alert (`repository_dispatch`) | [run 46130112751](https://github.com/turab1020/SynthGuard-Ops/actions/runs/46130112751) | challenger ROC-AUC 0.8783 vs champion 0.8844 (Δ −0.0061): **PROMOTED** |
+| Retraining, quick smoke run (1 epoch) | [run 46128061262](https://github.com/turab1020/SynthGuard-Ops/actions/runs/46128061262) | challenger 0.6022 vs 0.8844: **champion kept** |
+| Promotion PR (gate vs `main`'s benchmark) | [PR #48](https://github.com/turab1020/SynthGuard-Ops/pull/48) | gate PASSED |
+| Gated deploy of the promotion | [run 46131143915](https://github.com/turab1020/SynthGuard-Ops/actions/runs/46131143915) | live `/health`: `model_version` **2** |
+| Rollback → rollback PR → gated deploy | [run 46131556503](https://github.com/turab1020/SynthGuard-Ops/actions/runs/46131556503) · [PR #49](https://github.com/turab1020/SynthGuard-Ops/pull/49) · [deploy 46131970455](https://github.com/turab1020/SynthGuard-Ops/actions/runs/46131970455) | live `/health`: `model_version` **1** again |
+
+Reproduce the loop yourself (Actions tab or `gh`):
+
+```bash
+python scripts/simulate_traffic.py send --url https://synthguard-ops.onrender.com --mode drifted --n 1000
+gh workflow run drift-check.yml -f dispatch=true     # alert -> starts "Retrain" automatically
+gh workflow run retrain.yml -f mode=drifted          # or start a retrain by hand (-f smoke=true: quick run)
+gh workflow run rollback.yml                         # restore the previously served model (opens a branch to PR)
+```
+
+The live request buffer lives in memory, so a deploy or a sleep of the free instance empties it:
+send the traffic and run the drift check in one go.
 
 ---
 
@@ -265,7 +325,8 @@ Registered model: **TVAE**, `synthguard-generator` version 1, alias `champion`. 
 | **D2-10** | Nufil | Monitoring | Simulate normal & drifted live traffic and labeled retraining batches from unseen UCI `adult.test` (`monitoring/simulate.py`, `scripts/simulate_traffic.py`). | **Done** (PR #40) |
 | **D2 — Rollback & Promotion** | Turab & Faizan | Registry / CD | Model rollback (`scripts/rollback.py`, `rollback.yml`) and champion-challenger promotion logic (`tracking/promotion.py`, `compare_promote.py`). | **Done** (PR #43, #44) |
 | **D2-12** | Nufil | Pipeline / CI | Drift-triggered retraining workflow (`retrain.yml`), challenger alias isolation (`SYNTHGUARD_REGISTER_ALIAS`), and validated batch append (`scripts/append_batch.py`). | **Done** (PR #45) |
-| **D2 — Final Demo & Submission** | Team | Submission | End-to-end live drift, retraining & rollback demonstration, evidence capture, and Deliverable 2 submission. | In progress |
+| **D2 — Closed loop on the live URL** | Team | Milestone | Drift alert → retraining → promotion → gated deploy → rollback, all on GitHub Actions and the live service (evidence table above). | **Done** (PR #46–#49) |
+| **D2 — Demo & Submission** | Team | Submission | 5-minute demo video and Deliverable 2 submission. | In progress |
 
 ### Deliverable 1 (Completed)
 
