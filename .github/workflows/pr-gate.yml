@@ -2,8 +2,10 @@ name: PR gate
 
 # Every pull request: data validation + evaluation gate on the model the PR would deploy.
 # PRs that change the classifier, params or pipeline also retrain a candidate and gate it.
-# Lint and unit tests run in ci.yml. A failed gate blocks the merge (required check) and,
-# because deploy.yml runs the same gate on main, also blocks the deploy.
+# The benchmark is always the base branch's metrics/classifier.json, so a PR cannot lower its own
+# bar (rollback/* PRs restore an earlier approved model with its benchmark). Lint and unit tests
+# run in ci.yml. A failed gate marks the PR BLOCKED; deploy.yml runs the same gate on main, so a
+# worse model is never deployed.
 on:
   pull_request:
 
@@ -42,12 +44,25 @@ jobs:
           .venv/bin/pip install --no-deps -e .
       - name: Data validation (download -> pandera validate -> prepare)
         run: PATH="$PWD/.venv/bin:$PATH" .venv/bin/dvc repro prepare
+      - name: Production benchmark = the base branch's (a PR cannot lower its own bar)
+        env:
+          HEAD_REF: ${{ github.head_ref }}
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          if [[ "$HEAD_REF" == rollback/* ]]; then
+            # A rollback restores an earlier approved model together with its own benchmark.
+            cp metrics/classifier.json benchmark.json
+            echo "benchmark: restored with the rollback (from this PR)" | tee benchmark_source.txt
+          else
+            git show "origin/$BASE_REF:metrics/classifier.json" > benchmark.json
+            echo "benchmark: $BASE_REF (production)" | tee benchmark_source.txt
+          fi
       - name: Eval gate on the model this PR would deploy (deploy/model)
         id: deployed
         run: |
           set +e
           .venv/bin/python scripts/eval_gate.py --candidate deploy/model/classifier.joblib \
-            --summary gate_deployed.md
+            --benchmark benchmark.json --summary gate_deployed.md
           echo "exit=$?" >> "$GITHUB_OUTPUT"
       - name: Does this PR change the model pipeline?
         id: scope
@@ -72,7 +87,8 @@ jobs:
         run: |
           set +e
           .venv/bin/python scripts/eval_gate.py \
-            --candidate "${{ runner.temp }}/candidate/classifier.joblib" --summary gate_retrained.md
+            --candidate "${{ runner.temp }}/candidate/classifier.joblib" \
+            --benchmark benchmark.json --summary gate_retrained.md
           echo "exit=$?" >> "$GITHUB_OUTPUT"
       - name: Report on the PR
         if: always()
@@ -80,7 +96,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           {
-            echo "### Deployed model (\`deploy/model\`)"; cat gate_deployed.md 2>/dev/null || echo "not run"
+            echo "### Deployed model (\`deploy/model\`)"; cat benchmark_source.txt 2>/dev/null; echo
+            cat gate_deployed.md 2>/dev/null || echo "not run"
             if [ -f gate_retrained.md ]; then echo; echo "### Retrained candidate"; cat gate_retrained.md; fi
           } > gate_report.md
           cat gate_report.md >> "$GITHUB_STEP_SUMMARY"
