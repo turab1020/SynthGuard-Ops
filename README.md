@@ -128,8 +128,8 @@ flowchart LR
     U["User"] --> UI["Streamlit UI<br/>(Render)"]
     UI -- HTTP --> API["FastAPI /predict + TreeSHAP<br/>/health /metrics (Render)"]
     API -- loads --> M["deploy/model<br/>(exported @champion classifier)"]
-    API -- /metrics --> P["Prometheus + Grafana<br/>(local docker compose)"]
-    API -- recent requests --> D["drift-check.yml<br/>(Evidently vs real train sample)"]
+    API -- "/metrics" --> P["Prometheus + Grafana<br/>(local docker compose)"]
+    API -- "recent requests" --> D["drift-check.yml<br/>(Evidently vs real train sample)"]
     D -- "alert: repository_dispatch drift-alert" --> RT["retrain.yml<br/>new batch -> generators -> challenger"]
     RT -- "champion vs challenger<br/>(fixed hold-out)" --> C{"promote?"}
     C -- "yes: promote/* branch" --> PR["PR + pr-gate.yml<br/>(eval gate vs main's benchmark)"]
