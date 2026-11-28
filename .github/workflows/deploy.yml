@@ -62,6 +62,8 @@ jobs:
       SERVICE_URL: ${{ vars.RENDER_SERVICE_URL || 'https://synthguard-ops.onrender.com' }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - name: Call the Render deploy hook
         env:
           RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
@@ -71,18 +73,26 @@ jobs:
             exit 0
           fi
           curl -fsS -X POST "$RENDER_DEPLOY_HOOK" -o /dev/null -w "deploy hook HTTP %{http_code}\n"
-      - name: Wait until the live service runs this commit
+      - name: Wait until the live service runs this commit (or a later one on main)
         env:
           RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
         run: |
           [ -z "$RENDER_DEPLOY_HOOK" ] && exit 0
+          # A later push to main may deploy before this run checks; that also contains this commit.
           for i in $(seq 1 60); do
             live=$(curl -fsS --max-time 60 "$SERVICE_URL/health" | python3 -c "import sys,json; print(json.load(sys.stdin).get('commit') or '')" || true)
             if [ "$live" = "$GITHUB_SHA" ]; then echo "live service runs $GITHUB_SHA"; exit 0; fi
-            if [ -z "$live" ] && [ "$i" -gt 1 ]; then echo "::notice::/health reports no commit"; fi
+            if [ -n "$live" ]; then
+              git fetch -q origin main
+              if git cat-file -e "$live^{commit}" 2>/dev/null && git merge-base --is-ancestor "$GITHUB_SHA" "$live"; then
+                echo "live service runs $live, a later commit on main that includes $GITHUB_SHA"; exit 0
+              fi
+            elif [ "$i" -gt 1 ]; then
+              echo "::notice::/health reports no commit"
+            fi
             sleep 20
           done
-          echo "::error::live service did not switch to $GITHUB_SHA within 20 minutes"; exit 1
+          echo "::error::live service did not switch to $GITHUB_SHA (or a later commit) within 20 minutes"; exit 1
       - name: Smoke-test the live service
         env:
           RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
